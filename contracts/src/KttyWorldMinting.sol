@@ -141,6 +141,7 @@ contract KttyWorldMinting is Initializable, OwnableUpgradeable, UUPSUpgradeable,
     error PoolExhausted();
     error InvalidProof();
     error InvalidPaymentType();
+    error InvalidArrayLength();
     error TransferFailed();
 
     function _getKttyWorldMintingStorage() private pure returns (KttyWorldMintingStorage storage $) {
@@ -460,6 +461,41 @@ contract KttyWorldMinting is Initializable, OwnableUpgradeable, UUPSUpgradeable,
         });
         
         emit BookAdded(bookId, nftId, toolIds, goldenTicketId);
+    }
+
+    /// @notice Batch add multiple books
+    /// @param bookIds Array of book IDs
+    /// @param nftIds Array of NFT token IDs
+    /// @param toolIds Array of tool ID arrays (each containing 3 tool IDs)
+    /// @param goldenTicketIds Array of golden ticket IDs (0 if none)
+    /// @param nftTypes Array of NFT types ("NULL", "BASIC", "1/1")
+    function batchAddBooks(
+        uint256[] calldata bookIds,
+        uint256[] calldata nftIds,
+        uint256[3][] calldata toolIds,
+        uint256[] calldata goldenTicketIds,
+        string[] calldata nftTypes
+    ) external onlyOwner {
+        if (bookIds.length != nftIds.length || 
+            bookIds.length != toolIds.length || 
+            bookIds.length != goldenTicketIds.length || 
+            bookIds.length != nftTypes.length) {
+            revert InvalidArrayLength();
+        }
+        
+        KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
+        
+        for (uint256 i = 0; i < bookIds.length; i++) {
+            $.books[bookIds[i]] = Book({
+                nftId: nftIds[i],
+                toolIds: toolIds[i],
+                goldenTicketId: goldenTicketIds[i],
+                hasGoldenTicket: goldenTicketIds[i] != 0,
+                nftType: nftTypes[i]
+            });
+            
+            emit BookAdded(bookIds[i], nftIds[i], toolIds[i], goldenTicketIds[i]);
+        }
     }
 
     /// @notice Manual airdrop for round 0

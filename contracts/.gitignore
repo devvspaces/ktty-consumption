@@ -99,3 +99,8 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+metadata
+dependencies
+
+scripts/*.json

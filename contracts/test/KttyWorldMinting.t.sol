@@ -214,6 +214,123 @@ contract KttyWorldMintingTest is Test {
         minting.addBook(1, 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
     }
 
+    function test_BatchAddBooks() public {
+        uint256[] memory bookIds = new uint256[](3);
+        bookIds[0] = 1;
+        bookIds[1] = 2;
+        bookIds[2] = 3;
+
+        uint256[] memory nftIds = new uint256[](3);
+        nftIds[0] = 101;
+        nftIds[1] = 102;
+        nftIds[2] = 103;
+
+        uint256[3][] memory toolIds = new uint256[3][](3);
+        toolIds[0] = [uint256(1), uint256(2), uint256(3)];
+        toolIds[1] = [uint256(4), uint256(5), uint256(6)];
+        toolIds[2] = [uint256(7), uint256(8), uint256(9)];
+
+        uint256[] memory goldenTicketIds = new uint256[](3);
+        goldenTicketIds[0] = 1;
+        goldenTicketIds[1] = 0; // No golden ticket
+        goldenTicketIds[2] = 2;
+
+        string[] memory nftTypes = new string[](3);
+        nftTypes[0] = "LEGENDARY";
+        nftTypes[1] = "RARE";
+        nftTypes[2] = "EPIC";
+
+        // Expect events for each book added
+        vm.expectEmit(true, true, true, true);
+        emit BookAdded(1, 101, [uint256(1), uint256(2), uint256(3)], 1);
+        vm.expectEmit(true, true, true, true);
+        emit BookAdded(2, 102, [uint256(4), uint256(5), uint256(6)], 0);
+        vm.expectEmit(true, true, true, true);
+        emit BookAdded(3, 103, [uint256(7), uint256(8), uint256(9)], 2);
+
+        vm.prank(owner);
+        minting.batchAddBooks(bookIds, nftIds, toolIds, goldenTicketIds, nftTypes);
+
+        // Verify all books were added correctly
+        KttyWorldMinting.Book memory book1 = minting.getBook(1);
+        assertEq(book1.nftId, 101);
+        assertEq(book1.toolIds[0], 1);
+        assertEq(book1.toolIds[1], 2);
+        assertEq(book1.toolIds[2], 3);
+        assertEq(book1.goldenTicketId, 1);
+        assertTrue(book1.hasGoldenTicket);
+        assertEq(book1.nftType, "LEGENDARY");
+
+        KttyWorldMinting.Book memory book2 = minting.getBook(2);
+        assertEq(book2.nftId, 102);
+        assertEq(book2.toolIds[0], 4);
+        assertEq(book2.toolIds[1], 5);
+        assertEq(book2.toolIds[2], 6);
+        assertEq(book2.goldenTicketId, 0);
+        assertFalse(book2.hasGoldenTicket);
+        assertEq(book2.nftType, "RARE");
+
+        KttyWorldMinting.Book memory book3 = minting.getBook(3);
+        assertEq(book3.nftId, 103);
+        assertEq(book3.toolIds[0], 7);
+        assertEq(book3.toolIds[1], 8);
+        assertEq(book3.toolIds[2], 9);
+        assertEq(book3.goldenTicketId, 2);
+        assertTrue(book3.hasGoldenTicket);
+        assertEq(book3.nftType, "EPIC");
+    }
+
+    function test_RevertWhen_BatchAddBooksArrayLengthMismatch() public {
+        uint256[] memory bookIds = new uint256[](3);
+        bookIds[0] = 1;
+        bookIds[1] = 2;
+        bookIds[2] = 3;
+
+        uint256[] memory nftIds = new uint256[](2); // Different length
+        nftIds[0] = 101;
+        nftIds[1] = 102;
+
+        uint256[3][] memory toolIds = new uint256[3][](3);
+        toolIds[0] = [uint256(1), uint256(2), uint256(3)];
+        toolIds[1] = [uint256(4), uint256(5), uint256(6)];
+        toolIds[2] = [uint256(7), uint256(8), uint256(9)];
+
+        uint256[] memory goldenTicketIds = new uint256[](3);
+        goldenTicketIds[0] = 1;
+        goldenTicketIds[1] = 0;
+        goldenTicketIds[2] = 2;
+
+        string[] memory nftTypes = new string[](3);
+        nftTypes[0] = "LEGENDARY";
+        nftTypes[1] = "RARE";
+        nftTypes[2] = "EPIC";
+
+        vm.prank(owner);
+        vm.expectRevert(KttyWorldMinting.InvalidArrayLength.selector);
+        minting.batchAddBooks(bookIds, nftIds, toolIds, goldenTicketIds, nftTypes);
+    }
+
+    function test_RevertWhen_BatchAddBooksNotOwner() public {
+        uint256[] memory bookIds = new uint256[](1);
+        bookIds[0] = 1;
+
+        uint256[] memory nftIds = new uint256[](1);
+        nftIds[0] = 101;
+
+        uint256[3][] memory toolIds = new uint256[3][](1);
+        toolIds[0] = [uint256(1), uint256(2), uint256(3)];
+
+        uint256[] memory goldenTicketIds = new uint256[](1);
+        goldenTicketIds[0] = 1;
+
+        string[] memory nftTypes = new string[](1);
+        nftTypes[0] = "LEGENDARY";
+
+        vm.prank(user1);
+        vm.expectRevert();
+        minting.batchAddBooks(bookIds, nftIds, toolIds, goldenTicketIds, nftTypes);
+    }
+
     function test_ConfigureRound() public {
         uint256 roundNumber = 1;
         uint256 startTime = block.timestamp + 1 hours;
