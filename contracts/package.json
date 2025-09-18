@@ -1,0 +1,13 @@
+{
+  "name": "ktty-world-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for KTTY World NFT minting system",
+  "scripts": {
+    "generate-merkle": "node scripts/generateMerkleTree.js"
+  },
+  "devDependencies": {
+    "merkletreejs": "^0.3.10",
+    "ethers": "^5.7.2",
+    "js-sha3": "^0.8.0"
+  }
+}
