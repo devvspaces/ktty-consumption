@@ -1,0 +1,13 @@
+--- Contract Addresses ---
+  Companions Implementation: 0x01b3a1Ca54D30D064Fb5E3dbdeA093f6C1411241
+  Companions Proxy: 0xce2298CbB94374B9724ab03dd9E113F5F1253799
+  Books Implementation: 0x25994f04C47CA1B9B45E821FFE772f871a877734
+  Books Proxy: 0xA8455840F1936Bd07F89BE039a2EDDb370f81AC0
+  Tools Implementation: 0x3F6F3C6C72eA042a93Bf52347b561fD942139EF3
+  Tools Proxy: 0xC21eAF4377cC22D21B1D49FE2CA0eE78C7a74023
+  Collectibles Implementation: 0xaCa88d6e729c76D2e6c6EdD6f0628022f34b4527
+  Collectibles Proxy: 0x735F05Afb04ab42e5748E0D420d02C8DC6aB5508
+  
+  --- Contract Addresses ---
+ Minting Implementation: 0xbAe7caC1A598aBc5fA9F5760fa24b143004c4bAc
+  Minting Proxy: 0x1400DFf45a6c3Ff672BE667EC0894b9921a8882D

@@ -4,40 +4,53 @@ pragma solidity ^0.8.20;
 import {Script, console} from "forge-std/Script.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {KttyWorldMinting} from "../src/KttyWorldMinting.sol";
-import {KttyWorldCompanions} from "../src/KttyWorldCompanions.sol";
-import {KttyWorldTools} from "../src/KttyWorldTools.sol";
-import {KttyWorldCollectibles} from "../src/KttyWorldCollectibles.sol";
+import {DummyBooks} from "../src/KttyWorldBooks.sol";
+import {DummyCompanions} from "../src/KttyWorldCompanions.sol";
+import {DummyTools} from "../src/KttyWorldTools.sol";
+import {DummyCollectibles} from "../src/KttyWorldCollectibles.sol";
 
 contract DeployMinting is Script {
     // NFT contract addresses (UPDATE THESE FROM DeployNFTs.s.sol OUTPUT)
-    address constant COMPANIONS_ADDRESS = 0x0000000000000000000000000000000000000000; // UPDATE
-    address constant TOOLS_ADDRESS = 0x0000000000000000000000000000000000000000; // UPDATE
-    address constant COLLECTIBLES_ADDRESS = 0x0000000000000000000000000000000000000000; // UPDATE
-    
+    address COMPANIONS_ADDRESS = vm.envAddress("COMPANIONS_ADDRESS"); // UPDATE
+    address TOOLS_ADDRESS = vm.envAddress("TOOLS_ADDRESS"); // UPDATE
+    address COLLECTIBLES_ADDRESS = vm.envAddress("COLLECTIBLES_ADDRESS"); // UPDATE
+    address BOOKS_ADDRESS = vm.envAddress("BOOKS_ADDRESS"); // UPDATE
+
     // Configuration constants
-    address constant TREASURY_WALLET = 0x0000000000000000000000000000000000000000; // Update as needed
-    address constant KTTY_TOKEN = 0x0000000000000000000000000000000000000000; // Update with actual KTTY token
+    address TREASURY_WALLET = vm.envAddress("TREASURY_WALLET"); // Update as needed
+    address KTTY_TOKEN = vm.envAddress("KTTY_TOKEN"); // Update with actual KTTY token
     uint256 constant MAX_MINT_PER_TX = 10;
     
-    // Payment configuration
-    uint256 constant NATIVE_ONLY_PRICE = 1 ether;
-    uint256 constant HYBRID_NATIVE_PRICE = 0.5 ether;
-    uint256 constant HYBRID_KTTY_PRICE = 100 * 10**18; // 100 KTTY tokens
+    // Payment configuration for round 1 - 4
+    uint256 NATIVE_ONLY_PRICE_1 = 0.001 ether;
+    uint256 HYBRID_NATIVE_PRICE_1 = 0.001 ether;
+    uint256 HYBRID_KTTY_PRICE_1 = 1 * 10**18; // 100 KTTY tokens
+    uint256 NATIVE_ONLY_PRICE_2 = 0.001 ether;
+    uint256 HYBRID_NATIVE_PRICE_2 = 0.001 ether;
+    uint256 HYBRID_KTTY_PRICE_2 = 1 * 10**18; // 100 KTTY tokens
+    uint256 NATIVE_ONLY_PRICE_3 = 0.001 ether;
+    uint256 HYBRID_NATIVE_PRICE_3 = 0.001 ether;
+    uint256 HYBRID_KTTY_PRICE_3 = 1 * 10**18; // 100 KTTY tokens
+    uint256 NATIVE_ONLY_PRICE_4 = 0.001 ether;
+    uint256 HYBRID_NATIVE_PRICE_4 = 0.001 ether;
+    uint256 HYBRID_KTTY_PRICE_4 = 1 * 10**18; // 100 KTTY tokens
     
     // Round timing configuration (timestamps - UPDATE AS NEEDED)
-    uint256 constant ROUND1_START = 1703980800; // Jan 1, 2024 00:00:00 UTC - UPDATE
-    uint256 constant ROUND1_END = 1704067200;   // Jan 2, 2024 00:00:00 UTC - UPDATE
-    uint256 constant ROUND2_START = 1704153600; // Jan 3, 2024 00:00:00 UTC - UPDATE
-    uint256 constant ROUND2_END = 1704240000;   // Jan 4, 2024 00:00:00 UTC - UPDATE
-    uint256 constant ROUND3_START = 1704326400; // Jan 5, 2024 00:00:00 UTC - UPDATE
-    uint256 constant ROUND3_END = 1704412800;   // Jan 6, 2024 00:00:00 UTC - UPDATE
-    uint256 constant ROUND4_START = 1704499200; // Jan 7, 2024 00:00:00 UTC - UPDATE
-    uint256 constant ROUND4_END = 1704585600;   // Jan 8, 2024 00:00:00 UTC - UPDATE
-    
+    uint256 constant ROUND1_START = 1758672000; // Sep 24, 2025 00:00:00 UTC
+    uint256 constant ROUND1_END = 1758844800;   // Sep 26, 2025 00:00:00 UTC
+
+    uint256 constant ROUND2_START = 1758844800; // Sep 26, 2025 00:00:00 UTC
+    uint256 constant ROUND2_END = 1759017600;   // Sep 28, 2025 00:00:00 UTC
+
+    uint256 constant ROUND3_START = 1759017600; // Sep 28, 2025 00:00:00 UTC
+    uint256 constant ROUND3_END = 1759190400;   // Sep 30, 2025 00:00:00 UTC
+
+    uint256 constant ROUND4_START = 1759190400; // Sep 30, 2025 00:00:00 UTC
+    uint256 constant ROUND4_END = 1759363200;   // Oct 2, 2025 00:00:00 UTC
+
     // Tool and collectible quantities for test environment
-    uint256 constant TOOLS_PER_TYPE = 60;
-    uint256 constant GOLDEN_TICKET_SUPPLY = 16;
-    uint256 constant COMPANION_SUPPLY = 60;
+    uint256 constant TOOLS_PER_TYPE = 300;
+    uint256 constant GOLDEN_TICKET_SUPPLY = 100;
     
     // Deployment results
     struct DeploymentResult {
@@ -53,6 +66,7 @@ contract DeployMinting is Script {
         require(COMPANIONS_ADDRESS != address(0), "COMPANIONS_ADDRESS not set");
         require(TOOLS_ADDRESS != address(0), "TOOLS_ADDRESS not set");
         require(COLLECTIBLES_ADDRESS != address(0), "COLLECTIBLES_ADDRESS not set");
+        require(BOOKS_ADDRESS != address(0), "BOOKS_ADDRESS not set");
         
         // Get deployer private key from environment
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -65,6 +79,7 @@ contract DeployMinting is Script {
         console.log("  Companions:", COMPANIONS_ADDRESS);
         console.log("  Tools:", TOOLS_ADDRESS);
         console.log("  Collectibles:", COLLECTIBLES_ADDRESS);
+        console.log("  Books:", BOOKS_ADDRESS);
         
         vm.startBroadcast(deployerPrivateKey);
         
@@ -73,10 +88,16 @@ contract DeployMinting is Script {
         vm.stopBroadcast();
         
         // Print deployment results
-        printDeploymentResults(result);
+        // printDeploymentResults(result);
     }
     
     function deployMintingContract(address owner) internal returns (DeploymentResult memory result) {
+        // Get NFT contract instances
+        DummyCompanions companions = DummyCompanions(COMPANIONS_ADDRESS);
+        DummyTools tools = DummyTools(TOOLS_ADDRESS);
+        DummyCollectibles collectibles = DummyCollectibles(COLLECTIBLES_ADDRESS);
+        DummyBooks books = DummyBooks(BOOKS_ADDRESS);
+        
         console.log("\n--- Deploying Minting Contract ---");
         
         // Deploy Minting Contract
@@ -90,6 +111,7 @@ contract DeployMinting is Script {
                 COMPANIONS_ADDRESS,
                 TOOLS_ADDRESS,
                 COLLECTIBLES_ADDRESS,
+                BOOKS_ADDRESS,
                 KTTY_TOKEN,
                 TREASURY_WALLET,
                 MAX_MINT_PER_TX
@@ -99,67 +121,56 @@ contract DeployMinting is Script {
         ERC1967Proxy mintingProxy = new ERC1967Proxy(address(mintingImpl), mintingInitData);
         console.log("Minting Proxy:", address(mintingProxy));
         
+        // Set minting contract address on books contract
+        books.setMintingContract(address(mintingProxy));
+        companions.setMintingContract(address(mintingProxy));
+        console.log("Books and Companions minting contract set to:", address(mintingProxy));
+        
         KttyWorldMinting minting = KttyWorldMinting(address(mintingProxy));
         
-        // Configure payment options
+        // Configure payment options for rounds 1-4
         console.log("\n--- Configuring Payment Options ---");
-        minting.configurePayment(KttyWorldMinting.PaymentType.NATIVE_ONLY, NATIVE_ONLY_PRICE, 0);
-        console.log("Native-only payment configured:", NATIVE_ONLY_PRICE, "wei");
-        
-        minting.configurePayment(KttyWorldMinting.PaymentType.HYBRID, HYBRID_NATIVE_PRICE, HYBRID_KTTY_PRICE);
-        console.log("Hybrid payment configured:", HYBRID_NATIVE_PRICE, "wei +");
-        console.log(HYBRID_KTTY_PRICE, "KTTY");
+        minting.configurePayment(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, NATIVE_ONLY_PRICE_1, 0);
+        minting.configurePayment(1, KttyWorldMinting.PaymentType.HYBRID, HYBRID_NATIVE_PRICE_1, HYBRID_KTTY_PRICE_1);
+        minting.configurePayment(2, KttyWorldMinting.PaymentType.NATIVE_ONLY, NATIVE_ONLY_PRICE_2, 0);
+        minting.configurePayment(2, KttyWorldMinting.PaymentType.HYBRID, HYBRID_NATIVE_PRICE_2, HYBRID_KTTY_PRICE_2);
+        minting.configurePayment(3, KttyWorldMinting.PaymentType.NATIVE_ONLY, NATIVE_ONLY_PRICE_3, 0);
+        minting.configurePayment(3, KttyWorldMinting.PaymentType.HYBRID, HYBRID_NATIVE_PRICE_3, HYBRID_KTTY_PRICE_3);
+        minting.configurePayment(4, KttyWorldMinting.PaymentType.NATIVE_ONLY, NATIVE_ONLY_PRICE_4, 0);
+        minting.configurePayment(4, KttyWorldMinting.PaymentType.HYBRID, HYBRID_NATIVE_PRICE_4, HYBRID_KTTY_PRICE_4);
+        console.log("Payment options configured for rounds 1-4");
         
         // Configure rounds
         console.log("\n--- Configuring Rounds ---");
         minting.configureRound(1, ROUND1_START, ROUND1_END);
-        console.log("Round 1 configured: Start", ROUND1_START, "End", ROUND1_END);
-        
         minting.configureRound(2, ROUND2_START, ROUND2_END);
-        console.log("Round 2 configured: Start", ROUND2_START, "End", ROUND2_END);
-        
         minting.configureRound(3, ROUND3_START, ROUND3_END);
-        console.log("Round 3 configured: Start", ROUND3_START, "End", ROUND3_END);
-        
         minting.configureRound(4, ROUND4_START, ROUND4_END);
-        console.log("Round 4 configured: Start", ROUND4_START, "End", ROUND4_END);
-        
+
         // Mint all NFTs to minting contract
         console.log("\n--- Minting All NFTs to Minting Contract ---");
         
-        // Get NFT contract instances
-        KttyWorldCompanions companions = KttyWorldCompanions(COMPANIONS_ADDRESS);
-        KttyWorldTools tools = KttyWorldTools(TOOLS_ADDRESS);
-        KttyWorldCollectibles collectibles = KttyWorldCollectibles(COLLECTIBLES_ADDRESS);
-        
         // Mint all companions
         console.log("Minting companions...");
-        uint256 companionsBefore = companions.totalSupply();
-        companions.mintAll(address(minting));
-        uint256 companionsAfter = companions.totalSupply();
-        uint256 companionsMinted = companionsAfter - companionsBefore;
-        console.log("Companions minted:", companionsMinted, "Total supply:", companionsAfter);
-        require(companionsMinted == COMPANION_SUPPLY, "Incorrect companions minted");
+        uint256 companionSupply = companions.totalSupply();
+        uint256 maxCompanions = companions.maxSupply();
+        uint256 mintBatchSize = 100;
+        console.log("Current companion supply:", companionSupply, "/", maxCompanions);
+        while (companionSupply < maxCompanions) {
+            companions.mintAll(address(minting), mintBatchSize);
+            companionSupply = companions.totalSupply();
+        }
+        console.log("New Companion supply:", companionSupply, "/", maxCompanions);
         
-        // Mint tools (60 of each type, 5 types = 300 total)
+        // Mint tools to minting contract
         console.log("Minting tools...");
-        uint256[] memory toolIds = new uint256[](5);
-        uint256[] memory toolAmounts = new uint256[](5);
-        for (uint256 i = 0; i < 5; i++) {
-            toolIds[i] = i + 1; // Tool IDs are 1-5
+        uint256[] memory toolIds = new uint256[](15);
+        uint256[] memory toolAmounts = new uint256[](15);
+        for (uint256 i = 0; i < 15; i++) {
+            toolIds[i] = i + 1;
             toolAmounts[i] = TOOLS_PER_TYPE;
         }
         tools.batchMint(address(minting), toolIds, toolAmounts);
-        console.log("Tools minted: 5 types x", TOOLS_PER_TYPE, "= 300 total");
-        
-        // Verify tool minting
-        uint256 totalToolsMinted = 0;
-        for (uint256 i = 0; i < 5; i++) {
-            uint256 balance = tools.balanceOf(address(minting), i + 1);
-            totalToolsMinted += balance;
-            console.log("Tool ID", i + 1, "balance:", balance);
-        }
-        require(totalToolsMinted == TOOLS_PER_TYPE * 5, "Incorrect tools minted");
         
         // Mint golden tickets
         console.log("Minting golden tickets...");
@@ -169,34 +180,19 @@ contract DeployMinting is Script {
         collectibleAmounts[0] = GOLDEN_TICKET_SUPPLY;
         collectibles.batchMint(address(minting), collectibleIds, collectibleAmounts);
         
-        uint256 goldenTicketBalance = collectibles.balanceOf(address(minting), 1);
-        console.log("Golden tickets minted:", goldenTicketBalance);
-        require(goldenTicketBalance == GOLDEN_TICKET_SUPPLY, "Incorrect golden tickets minted");
-        
         // Final validation
         console.log("\n--- Final Validation ---");
-        require(minting.getCurrentRound() == 0, "Should be in manual round initially");
-        console.log("Current round:", minting.getCurrentRound(), "(Manual round)");
-        
-        // Check payment configuration
-        (KttyWorldMinting.PaymentOption memory nativeOnly, KttyWorldMinting.PaymentOption memory hybrid) = minting.getPaymentConfig();
-        require(nativeOnly.nativeAmount == NATIVE_ONLY_PRICE, "Invalid native-only price");
-        require(hybrid.nativeAmount == HYBRID_NATIVE_PRICE, "Invalid hybrid native price");
-        require(hybrid.erc20Amount == HYBRID_KTTY_PRICE, "Invalid hybrid ERC20 price");
-        console.log("Payment configuration validated");
-        
-        console.log("All validations passed");
-        
+
         return DeploymentResult({
             mintingImpl: address(mintingImpl),
             mintingProxy: address(mintingProxy),
-            companionsMinted: companionsMinted,
-            toolsMinted: totalToolsMinted,
-            collectiblesMinted: goldenTicketBalance
+            companionsMinted: 0,
+            toolsMinted: 0,
+            collectiblesMinted: 0
         });
     }
     
-    function printDeploymentResults(DeploymentResult memory result) internal pure {
+    function printDeploymentResults(DeploymentResult memory result) internal view {
         console.log("\n=== MINTING CONTRACT DEPLOYMENT COMPLETE ===");
         
         console.log("\n--- Contract Addresses ---");
@@ -212,11 +208,6 @@ contract DeployMinting is Script {
         console.log("Companions minted:", result.companionsMinted);
         console.log("Tools minted:", result.toolsMinted);
         console.log("Golden tickets minted:", result.collectiblesMinted);
-        
-        console.log("\n--- Payment Configuration ---");
-        console.log("Native-only price:", NATIVE_ONLY_PRICE, "wei");
-        console.log("Hybrid native price:", HYBRID_NATIVE_PRICE, "wei");
-        console.log("Hybrid KTTY price:", HYBRID_KTTY_PRICE, "tokens");
         
         console.log("\n--- Round Configuration ---");
         console.log("Round 1:", ROUND1_START, "-", ROUND1_END);

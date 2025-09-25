@@ -43,7 +43,7 @@ function createBook(bookId, nft, hasGoldenTicket = false) {
     return {
         bookId: bookId,
         nftId: nft.tokenId,
-        nftType: nft.type,
+        series: nft.type,
         toolIds: generateRandomToolIds(),
         goldenTicketId: hasGoldenTicket ? GOLDEN_TICKET_ID : 0,
         hasGoldenTicket: hasGoldenTicket
@@ -272,7 +272,7 @@ function generateBooks() {
     // Validate NFT type distribution in books
     const bookTypeCounts = {};
     allBooks.forEach(book => {
-        bookTypeCounts[book.nftType] = (bookTypeCounts[book.nftType] || 0) + 1;
+        bookTypeCounts[book.series] = (bookTypeCounts[book.series] || 0) + 1;
     });
     
     console.log(`   - Book NFT type distribution:`);
@@ -293,7 +293,7 @@ function generateBooks() {
     // Show samples
     console.log(`\n📋 Sample books (first 3):`);
     allBooks.slice(0, 3).forEach(book => {
-        console.log(`   - Book ${book.bookId}: NFT ${book.nftId} (${book.nftType}), Tools [${book.toolIds.join(', ')}], Golden Ticket: ${book.hasGoldenTicket}`);
+        console.log(`   - Book ${book.bookId}: NFT ${book.nftId} (${book.series}), Tools [${book.toolIds.join(', ')}], Golden Ticket: ${book.hasGoldenTicket}`);
     });
     
     console.log(`\n🎉 Successfully generated 50 books with proper distribution!`);

@@ -6,11 +6,16 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/// @title KttyWorldCompanions
+/// @title DummyCompanions
 /// @notice ERC721 contract for KTTY World Companions NFTs with reveal mechanism
 /// @dev UUPS upgradeable contract with namespaced storage
-contract KttyWorldCompanions is Initializable, ERC721Upgradeable, OwnableUpgradeable, UUPSUpgradeable {
-    /// @custom:storage-location erc7201:ktty.storage.KttyWorldCompanions
+contract DummyCompanions is
+    Initializable,
+    ERC721Upgradeable,
+    OwnableUpgradeable,
+    UUPSUpgradeable
+{
+    /// @custom:storage-location erc7201:ktty.storage.DummyCompanions
     struct KttyWorldCompanionsStorage {
         uint256 totalSupply;
         uint256 maxSupply;
@@ -18,24 +23,38 @@ contract KttyWorldCompanions is Initializable, ERC721Upgradeable, OwnableUpgrade
         string hiddenMetadataUri;
         string baseTokenUri;
         mapping(uint256 => bool) tokenExists;
+        mapping(uint256 => bool) tokenRevealed;
+        address mintingContract;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("ktty.storage.KttyWorldCompanions")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant KTTY_WORLD_COMPANIONS_STORAGE_LOCATION = 
+    // keccak256(abi.encode(uint256(keccak256("ktty.storage.DummyCompanions")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant KTTY_WORLD_COMPANIONS_STORAGE_LOCATION =
         0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
 
     event Revealed(bool revealed);
     event HiddenMetadataUriUpdated(string hiddenMetadataUri);
     event BaseTokenUriUpdated(string baseTokenUri);
-    event BatchMinted(address indexed to, uint256 startTokenId, uint256 quantity);
+    event BatchMinted(
+        address indexed to,
+        uint256 startTokenId,
+        uint256 quantity
+    );
     event MetadataUpdated(uint256 tokenId);
+    event TokenRevealed(uint256 indexed tokenId);
+    event TokensRevealed(uint256[] tokenIds);
+    event MintingContractUpdated(address indexed newMintingContract);
 
     error MaxSupplyReached();
     error InvalidTokenId();
     error BatchSizeZero();
+    error OnlyOwnerOrMintingContract();
     error ExceedsMaxSupply();
 
-    function _getKttyWorldCompanionsStorage() private pure returns (KttyWorldCompanionsStorage storage $) {
+    function _getKttyWorldCompanionsStorage()
+        private
+        pure
+        returns (KttyWorldCompanionsStorage storage $)
+    {
         assembly {
             $.slot := KTTY_WORLD_COMPANIONS_STORAGE_LOCATION
         }
@@ -81,33 +100,36 @@ contract KttyWorldCompanions is Initializable, ERC721Upgradeable, OwnableUpgrade
     /// @param quantity The number of NFTs to mint
     function _batchMint(address to, uint256 quantity) internal {
         if (quantity == 0) revert BatchSizeZero();
-        
+
         KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
-        
+
         if ($.totalSupply + quantity > $.maxSupply) revert ExceedsMaxSupply();
 
         uint256 startTokenId = $.totalSupply + 1;
-        
+
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = startTokenId + i;
             $.tokenExists[tokenId] = true;
             _mint(to, tokenId);
         }
-        
+
         $.totalSupply += quantity;
-        
+
         emit BatchMinted(to, startTokenId, quantity);
     }
 
-    /// @notice Mint all remaining NFTs to a specific address
+    /// @notice Mint all remaining NFTs up to quantity to a specific address
     /// @param to The address to mint all NFTs to
-    function mintAll(address to) external onlyOwner {
+    function mintAll(address to, uint256 quantity) external onlyOwner {
         KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
         uint256 remainingSupply = $.maxSupply - $.totalSupply;
-        
+
         if (remainingSupply == 0) revert MaxSupplyReached();
-        
-        _batchMint(to, remainingSupply);
+        uint256 mintQuantity = quantity > remainingSupply
+            ? remainingSupply
+            : quantity;
+
+        _batchMint(to, mintQuantity);
     }
 
     /// @notice Set the revealed state
@@ -119,9 +141,55 @@ contract KttyWorldCompanions is Initializable, ERC721Upgradeable, OwnableUpgrade
         emit MetadataUpdated(type(uint256).max); // Indicate all metadata updated
     }
 
+    /// @notice Reveal a specific token
+    /// @param tokenId The token ID to reveal
+    function revealToken(uint256 tokenId) external {
+        _requireOwnerOrMintingContract();
+
+        KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
+        if (!$.tokenExists[tokenId]) revert InvalidTokenId();
+
+        $.tokenRevealed[tokenId] = true;
+        emit TokenRevealed(tokenId);
+        emit MetadataUpdated(tokenId);
+    }
+
+    /// @notice Reveal multiple tokens in batch
+    /// @param tokenIds Array of token IDs to reveal
+    function batchRevealTokens(uint256[] calldata tokenIds) external {
+        _requireOwnerOrMintingContract();
+
+        if (tokenIds.length == 0) revert BatchSizeZero();
+
+        KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tokenId = tokenIds[i];
+            if (!$.tokenExists[tokenId]) revert InvalidTokenId();
+
+            $.tokenRevealed[tokenId] = true;
+            emit MetadataUpdated(tokenId);
+        }
+
+        emit TokensRevealed(tokenIds);
+    }
+
+    /// @notice Check if a specific token is revealed
+    /// @param tokenId The token ID to check
+    /// @return Whether the token is revealed
+    function isTokenRevealed(uint256 tokenId) external view returns (bool) {
+        KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
+        if (!$.tokenExists[tokenId]) revert InvalidTokenId();
+
+        // Token is revealed if either globally revealed or individually revealed
+        return $.revealed || $.tokenRevealed[tokenId];
+    }
+
     /// @notice Set the hidden metadata URI
     /// @param _hiddenMetadataUri The new hidden metadata URI
-    function setHiddenMetadataUri(string calldata _hiddenMetadataUri) external onlyOwner {
+    function setHiddenMetadataUri(
+        string calldata _hiddenMetadataUri
+    ) external onlyOwner {
         KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
         $.hiddenMetadataUri = _hiddenMetadataUri;
         emit HiddenMetadataUriUpdated(_hiddenMetadataUri);
@@ -140,18 +208,28 @@ contract KttyWorldCompanions is Initializable, ERC721Upgradeable, OwnableUpgrade
     /// @notice Get the token URI for a specific token
     /// @param tokenId The token ID
     /// @return The token URI
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(
+        uint256 tokenId
+    ) public view override returns (string memory) {
         KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
-        
+
         if (!$.tokenExists[tokenId]) revert InvalidTokenId();
 
-        if (!$.revealed) {
+        // Check if token is revealed (either globally or individually)
+        if (!$.revealed && !$.tokenRevealed[tokenId]) {
             return $.hiddenMetadataUri;
         }
 
-        return bytes($.baseTokenUri).length > 0 
-            ? string(abi.encodePacked($.baseTokenUri, _toString(tokenId), ".json"))
-            : "";
+        return
+            bytes($.baseTokenUri).length > 0
+                ? string(
+                    abi.encodePacked(
+                        $.baseTokenUri,
+                        _toString(tokenId),
+                        ".json"
+                    )
+                )
+                : "";
     }
 
     /// @notice Get the total supply of NFTs
@@ -197,8 +275,33 @@ contract KttyWorldCompanions is Initializable, ERC721Upgradeable, OwnableUpgrade
         return $.tokenExists[tokenId];
     }
 
+    /// @notice Set the minting contract address
+    /// @param _mintingContract The new minting contract address
+    function setMintingContract(address _mintingContract) external onlyOwner {
+        KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
+        $.mintingContract = _mintingContract;
+        emit MintingContractUpdated(_mintingContract);
+    }
+
+    /// @notice Get the minting contract address
+    /// @return The minting contract address
+    function mintingContract() external view returns (address) {
+        KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
+        return $.mintingContract;
+    }
+
+    /// @dev Require that the caller is either the owner or the minting contract
+    function _requireOwnerOrMintingContract() internal view {
+        KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
+        if (msg.sender != owner() && msg.sender != $.mintingContract) {
+            revert OnlyOwnerOrMintingContract();
+        }
+    }
+
     /// @dev Required by UUPS pattern
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 
     /// @dev Convert uint256 to string
     function _toString(uint256 value) internal pure returns (string memory) {

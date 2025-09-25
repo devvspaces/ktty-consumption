@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {KttyWorldTools} from "src/KttyWorldTools.sol";
+import {DummyTools} from "src/KttyWorldTools.sol";
 
 contract KttyWorldToolsTest is Test {
-    KttyWorldTools public tools;
+    DummyTools public tools;
     
     address public owner;
     address public mintContract;
@@ -31,11 +31,11 @@ contract KttyWorldToolsTest is Test {
         user = makeAddr("user");
         
         // Deploy implementation
-        KttyWorldTools implementation = new KttyWorldTools();
+        DummyTools implementation = new DummyTools();
         
         // Prepare initialization data
         bytes memory initData = abi.encodeCall(
-            KttyWorldTools.initialize,
+            DummyTools.initialize,
             (owner, HIDDEN_URI)
         );
         
@@ -43,7 +43,7 @@ contract KttyWorldToolsTest is Test {
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         
         // Cast proxy to interface
-        tools = KttyWorldTools(address(proxy));
+        tools = DummyTools(address(proxy));
     }
 
     function test_Initialize() public view {
@@ -159,7 +159,7 @@ contract KttyWorldToolsTest is Test {
         amounts[0] = 100;
         amounts[1] = 200;
         
-        vm.expectRevert(KttyWorldTools.ArrayLengthMismatch.selector);
+        vm.expectRevert(DummyTools.ArrayLengthMismatch.selector);
         tools.batchMint(mintContract, tokenIds, amounts);
         
         vm.stopPrank();
@@ -174,7 +174,7 @@ contract KttyWorldToolsTest is Test {
         tokenIds[0] = 999; // Non-existent token
         amounts[0] = 100;
         
-        vm.expectRevert(KttyWorldTools.TokenNotExists.selector);
+        vm.expectRevert(DummyTools.TokenNotExists.selector);
         tools.batchMint(mintContract, tokenIds, amounts);
         
         vm.stopPrank();
@@ -191,7 +191,7 @@ contract KttyWorldToolsTest is Test {
         tokenIds[0] = tokenId;
         amounts[0] = 0;
         
-        vm.expectRevert(KttyWorldTools.ZeroQuantity.selector);
+        vm.expectRevert(DummyTools.ZeroQuantity.selector);
         tools.batchMint(mintContract, tokenIds, amounts);
         
         vm.stopPrank();
@@ -280,7 +280,7 @@ contract KttyWorldToolsTest is Test {
     function test_RevertWhen_SetTokenUriNotExists() public {
         vm.startPrank(owner);
         
-        vm.expectRevert(KttyWorldTools.TokenNotExists.selector);
+        vm.expectRevert(DummyTools.TokenNotExists.selector);
         tools.setTokenUri(999, "new-uri");
         
         vm.stopPrank();
@@ -323,7 +323,7 @@ contract KttyWorldToolsTest is Test {
     }
 
     function test_RevertWhen_URITokenNotExists() public {
-        vm.expectRevert(KttyWorldTools.TokenNotExists.selector);
+        vm.expectRevert(DummyTools.TokenNotExists.selector);
         tools.uri(999);
     }
 
@@ -401,7 +401,7 @@ contract KttyWorldToolsTest is Test {
 }
 
 contract KttyWorldToolsInvariantTest is Test {
-    KttyWorldTools public tools;
+    DummyTools public tools;
     KttyWorldToolsHandler public handler;
     
     address public owner;
@@ -410,11 +410,11 @@ contract KttyWorldToolsInvariantTest is Test {
         owner = makeAddr("owner");
         
         // Deploy implementation
-        KttyWorldTools implementation = new KttyWorldTools();
+        DummyTools implementation = new DummyTools();
         
         // Prepare initialization data
         bytes memory initData = abi.encodeCall(
-            KttyWorldTools.initialize,
+            DummyTools.initialize,
             (owner, "https://hidden.com/")
         );
         
@@ -422,7 +422,7 @@ contract KttyWorldToolsInvariantTest is Test {
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         
         // Cast proxy to interface
-        tools = KttyWorldTools(address(proxy));
+        tools = DummyTools(address(proxy));
         handler = new KttyWorldToolsHandler(tools, owner);
         
         targetContract(address(handler));
@@ -448,14 +448,14 @@ contract KttyWorldToolsInvariantTest is Test {
 }
 
 contract KttyWorldToolsHandler is Test {
-    KttyWorldTools public tools;
+    DummyTools public tools;
     address public owner;
     
     uint256 public ghost_totalMinted;
     address[] public actors;
     uint256[] public tokenIds;
 
-    constructor(KttyWorldTools _tools, address _owner) {
+    constructor(DummyTools _tools, address _owner) {
         tools = _tools;
         owner = _owner;
         

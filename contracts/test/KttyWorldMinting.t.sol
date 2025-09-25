@@ -6,13 +6,14 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {KttyWorldMinting} from "src/KttyWorldMinting.sol";
-import {KttyWorldCompanions} from "src/KttyWorldCompanions.sol";
-import {KttyWorldTools} from "src/KttyWorldTools.sol";
-import {KttyWorldCollectibles} from "src/KttyWorldCollectibles.sol";
+import {DummyBooks} from "src/KttyWorldBooks.sol";
+import {DummyCompanions} from "src/KttyWorldCompanions.sol";
+import {DummyTools} from "src/KttyWorldTools.sol";
+import {DummyCollectibles} from "src/KttyWorldCollectibles.sol";
 
 contract MockKTTYToken is ERC20 {
     constructor() ERC20("KTTY Token", "KTTY") {
-        _mint(msg.sender, 1000000 * 10**18);
+        _mint(msg.sender, 1000000 * 10 ** 18);
     }
 
     function mint(address to, uint256 amount) external {
@@ -22,34 +23,50 @@ contract MockKTTYToken is ERC20 {
 
 contract KttyWorldMintingTest is Test {
     KttyWorldMinting public minting;
-    KttyWorldCompanions public companions;
-    KttyWorldTools public tools;
-    KttyWorldCollectibles public collectibles;
+    DummyCompanions public companions;
+    DummyTools public tools;
+    DummyCollectibles public collectibles;
     MockKTTYToken public kttyToken;
-    
+    DummyBooks public booksNft;
+
     address public owner;
     address public treasuryWallet;
     address public user1;
     address public user2;
     address public user3;
-    
+
     uint256 constant MAX_SUPPLY_NFT = 10000;
     uint256 constant MAX_MINT_PER_TX = 10;
     uint256 constant NATIVE_ONLY_PRICE = 1 ether;
     uint256 constant HYBRID_NATIVE_PRICE = 0.5 ether;
-    uint256 constant HYBRID_KTTY_PRICE = 100 * 10**18;
-    
+    uint256 constant HYBRID_KTTY_PRICE = 100 * 10 ** 18;
+
     string constant HIDDEN_URI = "https://hidden.example.com/";
     string constant BASE_URI = "https://revealed.example.com/";
-    
-    event BookAdded(uint256 indexed bookId, uint256 nftId, uint256[3] toolIds, uint256 goldenTicketId);
+
+    event BookAdded(
+        uint256 indexed bookId,
+        uint256 nftId,
+        uint256[3] toolIds,
+        uint256 goldenTicketId
+    );
     event BooksMinted(uint256[] bookIds, address indexed buyer);
     event BookOpened(uint256 indexed bookId, address indexed owner);
-    event RoundUpdated(uint256 indexed roundNumber, uint256 startTime, uint256 endTime);
-    event PaymentConfigured(KttyWorldMinting.PaymentType paymentType, uint256 nativeAmount, uint256 erc20Amount);
+    event RoundUpdated(
+        uint256 indexed roundNumber,
+        uint256 startTime,
+        uint256 endTime
+    );
+    event PaymentConfigured(
+        uint256 indexed roundNumber,
+        KttyWorldMinting.PaymentType paymentType,
+        uint256 nativeAmount,
+        uint256 erc20Amount
+    );
     event TreasuryWalletUpdated(address indexed newWallet);
     event PoolLoaded(uint256 indexed poolNumber, uint256 bookCount);
     event BucketLoaded(uint256 indexed bucketIndex, uint256 bookCount);
+    event MinterStatsUpdated(address indexed user, uint256 totalMints);
 
     function setUp() public {
         owner = makeAddr("owner");
@@ -64,31 +81,52 @@ contract KttyWorldMintingTest is Test {
         kttyToken = new MockKTTYToken();
 
         // Deploy Companions
-        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
+        DummyCompanions companionsImpl = new DummyCompanions();
         bytes memory companionsInitData = abi.encodeCall(
-            KttyWorldCompanions.initialize,
+            DummyCompanions.initialize,
             (owner, "KTTY World Companions", "KWC", HIDDEN_URI, MAX_SUPPLY_NFT)
         );
-        ERC1967Proxy companionsProxy = new ERC1967Proxy(address(companionsImpl), companionsInitData);
-        companions = KttyWorldCompanions(address(companionsProxy));
+        ERC1967Proxy companionsProxy = new ERC1967Proxy(
+            address(companionsImpl),
+            companionsInitData
+        );
+        companions = DummyCompanions(address(companionsProxy));
 
         // Deploy Tools
-        KttyWorldTools toolsImpl = new KttyWorldTools();
+        DummyTools toolsImpl = new DummyTools();
         bytes memory toolsInitData = abi.encodeCall(
-            KttyWorldTools.initialize,
+            DummyTools.initialize,
             (owner, HIDDEN_URI)
         );
-        ERC1967Proxy toolsProxy = new ERC1967Proxy(address(toolsImpl), toolsInitData);
-        tools = KttyWorldTools(address(toolsProxy));
+        ERC1967Proxy toolsProxy = new ERC1967Proxy(
+            address(toolsImpl),
+            toolsInitData
+        );
+        tools = DummyTools(address(toolsProxy));
 
         // Deploy Collectibles
-        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
+        DummyCollectibles collectiblesImpl = new DummyCollectibles();
         bytes memory collectiblesInitData = abi.encodeCall(
-            KttyWorldCollectibles.initialize,
+            DummyCollectibles.initialize,
             (owner, HIDDEN_URI)
         );
-        ERC1967Proxy collectiblesProxy = new ERC1967Proxy(address(collectiblesImpl), collectiblesInitData);
-        collectibles = KttyWorldCollectibles(address(collectiblesProxy));
+        ERC1967Proxy collectiblesProxy = new ERC1967Proxy(
+            address(collectiblesImpl),
+            collectiblesInitData
+        );
+        collectibles = DummyCollectibles(address(collectiblesProxy));
+
+        // Deploy Books
+        DummyBooks booksImpl = new DummyBooks();
+        bytes memory booksInitData = abi.encodeCall(
+            DummyBooks.initialize,
+            (owner, "KTTY World Books", "KWB", MAX_SUPPLY_NFT, HIDDEN_URI, address(0))
+        );
+        ERC1967Proxy booksProxy = new ERC1967Proxy(
+            address(booksImpl),
+            booksInitData
+        );
+        booksNft = DummyBooks(address(booksProxy));
 
         // Deploy Minting Contract
         KttyWorldMinting mintingImpl = new KttyWorldMinting();
@@ -99,25 +137,33 @@ contract KttyWorldMintingTest is Test {
                 address(companions),
                 address(tools),
                 address(collectibles),
+                address(booksNft),
                 address(kttyToken),
                 treasuryWallet,
                 MAX_MINT_PER_TX
             )
         );
-        ERC1967Proxy mintingProxy = new ERC1967Proxy(address(mintingImpl), mintingInitData);
+        ERC1967Proxy mintingProxy = new ERC1967Proxy(
+            address(mintingImpl),
+            mintingInitData
+        );
         minting = KttyWorldMinting(address(mintingProxy));
+
+        // Link Books contract to Minting contract
+        booksNft.setMintingContract(address(minting));
+        companions.setMintingContract(address(minting));
 
         // Set up token types for tools and collectibles
         tools.addTokenType("tool1.json");
-        tools.addTokenType("tool2.json");  
+        tools.addTokenType("tool2.json");
         tools.addTokenType("tool3.json");
         tools.addTokenType("tool4.json");
-        
+
         collectibles.addCollectibleType("golden_ticket.json");
 
         // Mint all NFTs to minting contract
-        companions.mintAll(address(minting));
-        
+        companions.mintAll(address(minting), MAX_SUPPLY_NFT);
+
         // Mint tools to minting contract
         uint256[] memory toolIds = new uint256[](4);
         uint256[] memory toolAmounts = new uint256[](4);
@@ -126,24 +172,40 @@ contract KttyWorldMintingTest is Test {
             toolAmounts[i] = 50000; // Large supply for testing
         }
         tools.batchMint(address(minting), toolIds, toolAmounts);
-        
+
         // Mint golden tickets to minting contract
         uint256[] memory collectibleIds = new uint256[](1);
         uint256[] memory collectibleAmounts = new uint256[](1);
         collectibleIds[0] = 1;
         collectibleAmounts[0] = 500; // As specified in requirements
-        collectibles.batchMint(address(minting), collectibleIds, collectibleAmounts);
+        collectibles.batchMint(
+            address(minting),
+            collectibleIds,
+            collectibleAmounts
+        );
 
-        // Configure payment options
-        minting.configurePayment(KttyWorldMinting.PaymentType.NATIVE_ONLY, NATIVE_ONLY_PRICE, 0);
-        minting.configurePayment(KttyWorldMinting.PaymentType.HYBRID, HYBRID_NATIVE_PRICE, HYBRID_KTTY_PRICE);
+        // Configure payment options for all rounds (1-4)
+        for (uint256 i = 1; i <= 4; i++) {
+            minting.configurePayment(
+                i,
+                KttyWorldMinting.PaymentType.NATIVE_ONLY,
+                NATIVE_ONLY_PRICE,
+                0
+            );
+            minting.configurePayment(
+                i,
+                KttyWorldMinting.PaymentType.HYBRID,
+                HYBRID_NATIVE_PRICE,
+                HYBRID_KTTY_PRICE
+            );
+        }
 
         vm.stopPrank();
 
         // Give users some KTTY tokens and native currency
-        kttyToken.mint(user1, 10000 * 10**18);
-        kttyToken.mint(user2, 10000 * 10**18);
-        kttyToken.mint(user3, 10000 * 10**18);
+        kttyToken.mint(user1, 10000 * 10 ** 18);
+        kttyToken.mint(user2, 10000 * 10 ** 18);
+        kttyToken.mint(user3, 10000 * 10 ** 18);
         vm.deal(user1, 100 ether);
         vm.deal(user2, 100 ether);
         vm.deal(user3, 100 ether);
@@ -155,17 +217,35 @@ contract KttyWorldMintingTest is Test {
         uint256 nftId,
         uint256[3] memory toolIds,
         uint256 goldenTicketId,
-        string memory nftType
+        string memory series
     ) internal {
+        // Prepare arrays for batch minting
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory nftIds = new uint256[](1);
+        uint256[3][] memory toolIdArrays = new uint256[3][](1);
+        uint256[] memory goldenTicketIds = new uint256[](1);
+        string[] memory seriesArr = new string[](1);
+
+        // Populate arrays
+        tokenIds[0] = bookId;
+        nftIds[0] = nftId;
+        toolIdArrays[0] = toolIds;
+        goldenTicketIds[0] = goldenTicketId;
+        seriesArr[0] = series;
+
+        // Mint book NFT to minting contract
         vm.prank(owner);
-        minting.addBook(bookId, nftId, toolIds, goldenTicketId, nftType);
+        booksNft.batchMintBooks(address(minting), tokenIds, nftIds, toolIdArrays, goldenTicketIds, seriesArr);
     }
 
     function test_Initialize() public view {
         assertEq(minting.owner(), owner);
         assertEq(minting.getCurrentRound(), 0); // Should start in manual round
-        
-        (KttyWorldMinting.PaymentOption memory nativeOnly, KttyWorldMinting.PaymentOption memory hybrid) = minting.getPaymentConfig();
+
+        (
+            KttyWorldMinting.PaymentOption memory nativeOnly,
+            KttyWorldMinting.PaymentOption memory hybrid
+        ) = minting.getPaymentConfig(1);
         assertEq(nativeOnly.nativeAmount, NATIVE_ONLY_PRICE);
         assertEq(nativeOnly.erc20Amount, 0);
         assertEq(hybrid.nativeAmount, HYBRID_NATIVE_PRICE);
@@ -179,6 +259,7 @@ contract KttyWorldMintingTest is Test {
             address(companions),
             address(tools),
             address(collectibles),
+            address(booksNft),
             address(kttyToken),
             treasuryWallet,
             MAX_MINT_PER_TX
@@ -190,28 +271,57 @@ contract KttyWorldMintingTest is Test {
         uint256 nftId = 1;
         uint256[3] memory toolIds = [uint256(1), uint256(2), uint256(3)];
         uint256 goldenTicketId = 1;
-        string memory nftType = "NULL";
+        string memory series = "Type B";
+
+        // Prepare arrays for batch minting
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory nftIds = new uint256[](1);
+        uint256[3][] memory toolIdArrays = new uint256[3][](1);
+        uint256[] memory goldenTicketIds = new uint256[](1);
+        string[] memory seriesArr = new string[](1);
+
+        tokenIds[0] = bookId;
+        nftIds[0] = nftId;
+        toolIdArrays[0] = toolIds;
+        goldenTicketIds[0] = goldenTicketId;
+        seriesArr[0] = series;
 
         vm.expectEmit(true, true, true, true);
         emit BookAdded(bookId, nftId, toolIds, goldenTicketId);
 
         vm.prank(owner);
-        minting.addBook(bookId, nftId, toolIds, goldenTicketId, nftType);
+        booksNft.batchMintBooks(address(minting), tokenIds, nftIds, toolIdArrays, goldenTicketIds, seriesArr);
 
-        KttyWorldMinting.Book memory book = minting.getBook(bookId);
+        // Verify book was minted correctly
+        assertEq(booksNft.ownerOf(bookId), address(minting));
+        assertTrue(booksNft.exists(bookId));
+        
+        DummyBooks.Book memory book = booksNft.getBook(bookId);
         assertEq(book.nftId, nftId);
         assertEq(book.toolIds[0], toolIds[0]);
         assertEq(book.toolIds[1], toolIds[1]);
         assertEq(book.toolIds[2], toolIds[2]);
         assertEq(book.goldenTicketId, goldenTicketId);
         assertTrue(book.hasGoldenTicket);
-        assertEq(book.nftType, nftType);
+        assertEq(book.series, series);
     }
 
     function test_RevertWhen_AddBookNotOwner() public {
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory nftIds = new uint256[](1);
+        uint256[3][] memory toolIdArrays = new uint256[3][](1);
+        uint256[] memory goldenTicketIds = new uint256[](1);
+        string[] memory series = new string[](1);
+
+        tokenIds[0] = 1;
+        nftIds[0] = 1;
+        toolIdArrays[0] = [uint256(1), uint256(2), uint256(3)];
+        goldenTicketIds[0] = 0;
+        series[0] = "NULL";
+
         vm.prank(user1);
         vm.expectRevert();
-        minting.addBook(1, 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+        booksNft.batchMintBooks(address(minting), tokenIds, nftIds, toolIdArrays, goldenTicketIds, series);
     }
 
     function test_BatchAddBooks() public {
@@ -235,10 +345,10 @@ contract KttyWorldMintingTest is Test {
         goldenTicketIds[1] = 0; // No golden ticket
         goldenTicketIds[2] = 2;
 
-        string[] memory nftTypes = new string[](3);
-        nftTypes[0] = "LEGENDARY";
-        nftTypes[1] = "RARE";
-        nftTypes[2] = "EPIC";
+        string[] memory series = new string[](3);
+        series[0] = "LEGENDARY";
+        series[1] = "RARE";
+        series[2] = "EPIC";
 
         // Expect events for each book added
         vm.expectEmit(true, true, true, true);
@@ -249,35 +359,46 @@ contract KttyWorldMintingTest is Test {
         emit BookAdded(3, 103, [uint256(7), uint256(8), uint256(9)], 2);
 
         vm.prank(owner);
-        minting.batchAddBooks(bookIds, nftIds, toolIds, goldenTicketIds, nftTypes);
+        booksNft.batchMintBooks(
+            address(minting),
+            bookIds,
+            nftIds,
+            toolIds,
+            goldenTicketIds,
+            series
+        );
 
-        // Verify all books were added correctly
-        KttyWorldMinting.Book memory book1 = minting.getBook(1);
+        // Verify all books were minted correctly
+        assertEq(booksNft.ownerOf(1), address(minting));
+        assertEq(booksNft.ownerOf(2), address(minting));
+        assertEq(booksNft.ownerOf(3), address(minting));
+        
+        DummyBooks.Book memory book1 = booksNft.getBook(1);
         assertEq(book1.nftId, 101);
         assertEq(book1.toolIds[0], 1);
         assertEq(book1.toolIds[1], 2);
         assertEq(book1.toolIds[2], 3);
         assertEq(book1.goldenTicketId, 1);
         assertTrue(book1.hasGoldenTicket);
-        assertEq(book1.nftType, "LEGENDARY");
+        assertEq(book1.series, "LEGENDARY");
 
-        KttyWorldMinting.Book memory book2 = minting.getBook(2);
+        DummyBooks.Book memory book2 = booksNft.getBook(2);
         assertEq(book2.nftId, 102);
         assertEq(book2.toolIds[0], 4);
         assertEq(book2.toolIds[1], 5);
         assertEq(book2.toolIds[2], 6);
         assertEq(book2.goldenTicketId, 0);
         assertFalse(book2.hasGoldenTicket);
-        assertEq(book2.nftType, "RARE");
+        assertEq(book2.series, "RARE");
 
-        KttyWorldMinting.Book memory book3 = minting.getBook(3);
+        DummyBooks.Book memory book3 = booksNft.getBook(3);
         assertEq(book3.nftId, 103);
         assertEq(book3.toolIds[0], 7);
         assertEq(book3.toolIds[1], 8);
         assertEq(book3.toolIds[2], 9);
         assertEq(book3.goldenTicketId, 2);
         assertTrue(book3.hasGoldenTicket);
-        assertEq(book3.nftType, "EPIC");
+        assertEq(book3.series, "EPIC");
     }
 
     function test_RevertWhen_BatchAddBooksArrayLengthMismatch() public {
@@ -300,14 +421,21 @@ contract KttyWorldMintingTest is Test {
         goldenTicketIds[1] = 0;
         goldenTicketIds[2] = 2;
 
-        string[] memory nftTypes = new string[](3);
-        nftTypes[0] = "LEGENDARY";
-        nftTypes[1] = "RARE";
-        nftTypes[2] = "EPIC";
+        string[] memory series = new string[](3);
+        series[0] = "LEGENDARY";
+        series[1] = "RARE";
+        series[2] = "EPIC";
 
         vm.prank(owner);
-        vm.expectRevert(KttyWorldMinting.InvalidArrayLength.selector);
-        minting.batchAddBooks(bookIds, nftIds, toolIds, goldenTicketIds, nftTypes);
+        vm.expectRevert(DummyBooks.InvalidArrayLength.selector);
+        booksNft.batchMintBooks(
+            address(minting),
+            bookIds,
+            nftIds,
+            toolIds,
+            goldenTicketIds,
+            series
+        );
     }
 
     function test_RevertWhen_BatchAddBooksNotOwner() public {
@@ -323,12 +451,19 @@ contract KttyWorldMintingTest is Test {
         uint256[] memory goldenTicketIds = new uint256[](1);
         goldenTicketIds[0] = 1;
 
-        string[] memory nftTypes = new string[](1);
-        nftTypes[0] = "LEGENDARY";
+        string[] memory series = new string[](1);
+        series[0] = "LEGENDARY";
 
         vm.prank(user1);
         vm.expectRevert();
-        minting.batchAddBooks(bookIds, nftIds, toolIds, goldenTicketIds, nftTypes);
+        booksNft.batchMintBooks(
+            address(minting),
+            bookIds,
+            nftIds,
+            toolIds,
+            goldenTicketIds,
+            series
+        );
     }
 
     function test_ConfigureRound() public {
@@ -384,28 +519,43 @@ contract KttyWorldMintingTest is Test {
     function test_SetRound3MerkleRoot() public {
         // Use generated merkle data from JavaScript script
         bytes32 merkleRoot = 0x103a5da4bd852cab556ff83f6a906cb85a74594b386f20f95f37d6eb0c614557;
-        
+
         vm.prank(owner);
         minting.setRound3MerkleRoot(merkleRoot);
-        
+
         // Test user1 (should be whitelisted)
         bytes32[] memory user1Proof = new bytes32[](3);
-        user1Proof[0] = 0xc30cdc6a88b24a674fe288a58a537402dbe5ce7d7d889d3cef08fd2ae3e48477;
-        user1Proof[1] = 0x99ee7d1d978da17c87b2b35fa00025d7b13eef1cbcfe3242d757f00cdb89c777;
-        user1Proof[2] = 0xeb9a09586e1c9f485ceebd51159d55c4c0b4c1b207fc119a967a693aa3207d5c;
-        
-        bool isUser1Whitelisted = minting.isWhitelistedForRound3(user1, user1Proof);
+        user1Proof[
+            0
+        ] = 0xc30cdc6a88b24a674fe288a58a537402dbe5ce7d7d889d3cef08fd2ae3e48477;
+        user1Proof[
+            1
+        ] = 0x99ee7d1d978da17c87b2b35fa00025d7b13eef1cbcfe3242d757f00cdb89c777;
+        user1Proof[
+            2
+        ] = 0xeb9a09586e1c9f485ceebd51159d55c4c0b4c1b207fc119a967a693aa3207d5c;
+
+        bool isUser1Whitelisted = minting.isWhitelistedForRound3(
+            user1,
+            user1Proof
+        );
         assertTrue(isUser1Whitelisted);
-        
+
         // Test non-whitelisted address (should fail)
         address nonWhitelisted = 0x000000000000000000000000000000000000dEaD;
         bytes32[] memory emptyProof = new bytes32[](0);
-        
-        bool isNotWhitelisted = minting.isWhitelistedForRound3(nonWhitelisted, emptyProof);
+
+        bool isNotWhitelisted = minting.isWhitelistedForRound3(
+            nonWhitelisted,
+            emptyProof
+        );
         assertFalse(isNotWhitelisted);
-        
+
         // Test valid address with wrong proof (should fail)
-        bool isUser1WithWrongProof = minting.isWhitelistedForRound3(user1, emptyProof);
+        bool isUser1WithWrongProof = minting.isWhitelistedForRound3(
+            user1,
+            emptyProof
+        );
         assertFalse(isUser1WithWrongProof);
     }
 
@@ -421,7 +571,7 @@ contract KttyWorldMintingTest is Test {
         vm.prank(owner);
         minting.loadPool1(bookIds);
 
-        (uint256 pool1Remaining, , , ) = minting.getPoolAndBucketStatus();
+        (, uint256 pool1Remaining, , , , ) = minting.getPoolAndBucketStatus();
         assertEq(pool1Remaining, 3);
     }
 
@@ -437,7 +587,7 @@ contract KttyWorldMintingTest is Test {
         vm.prank(owner);
         minting.loadPool2(bookIds);
 
-        (, uint256 pool2Remaining, , ) = minting.getPoolAndBucketStatus();
+        (, , , uint256 pool2Remaining, , ) = minting.getPoolAndBucketStatus();
         assertEq(pool2Remaining, 5);
     }
 
@@ -453,8 +603,9 @@ contract KttyWorldMintingTest is Test {
         vm.prank(owner);
         minting.loadBucket(0, bookIds, 5, 1, 2, 2);
 
-        (, , , uint256[8] memory bucketRemaining) = minting.getPoolAndBucketStatus();
-        assertEq(bucketRemaining[0], 10);
+        (, , , , , uint256[2][8] memory bucketStats) = minting
+            .getPoolAndBucketStatus();
+        assertEq(bucketStats[0][0], 10);
     }
 
     function test_RevertWhen_LoadInvalidBucket() public {
@@ -506,22 +657,33 @@ contract KttyWorldMintingTest is Test {
 
         vm.prank(owner);
         minting.setMaxMintPerTransaction(newMax);
-        
+
         // Test indirectly by trying to mint more than old limit but within new limit
         // (Would need active round and proper setup for full test)
     }
 
     function test_ConfigurePayment() public {
         uint256 newNativePrice = 2 ether;
-        uint256 newKttyPrice = 200 * 10**18;
+        uint256 newKttyPrice = 200 * 10 ** 18;
 
         vm.expectEmit(true, true, true, true);
-        emit PaymentConfigured(KttyWorldMinting.PaymentType.HYBRID, newNativePrice, newKttyPrice);
+        emit PaymentConfigured(
+            1,
+            KttyWorldMinting.PaymentType.HYBRID,
+            newNativePrice,
+            newKttyPrice
+        );
 
         vm.prank(owner);
-        minting.configurePayment(KttyWorldMinting.PaymentType.HYBRID, newNativePrice, newKttyPrice);
+        minting.configurePayment(
+            1,
+            KttyWorldMinting.PaymentType.HYBRID,
+            newNativePrice,
+            newKttyPrice
+        );
 
-        (, KttyWorldMinting.PaymentOption memory hybrid) = minting.getPaymentConfig();
+        (, KttyWorldMinting.PaymentOption memory hybrid) = minting
+            .getPaymentConfig(1);
         assertEq(hybrid.nativeAmount, newNativePrice);
         assertEq(hybrid.erc20Amount, newKttyPrice);
     }
@@ -529,7 +691,12 @@ contract KttyWorldMintingTest is Test {
     function test_RevertWhen_ConfigurePaymentNotOwner() public {
         vm.prank(user1);
         vm.expectRevert();
-        minting.configurePayment(KttyWorldMinting.PaymentType.NATIVE_ONLY, 1 ether, 0);
+        minting.configurePayment(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            1 ether,
+            0
+        );
     }
 
     // Test Round 1 Minting with Whitelist
@@ -551,7 +718,13 @@ contract KttyWorldMintingTest is Test {
         uint256[] memory pool1Books = new uint256[](5);
         for (uint256 i = 0; i < 5; i++) {
             pool1Books[i] = i + 1;
-            _createBook(i + 1, i + 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i + 1,
+                i + 1,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         vm.prank(owner);
@@ -559,9 +732,13 @@ contract KttyWorldMintingTest is Test {
 
         // User1 mints 2 books
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
-        minting.mint{value: NATIVE_ONLY_PRICE * 2}(2, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: NATIVE_ONLY_PRICE * 2}(
+            2,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
 
         uint256[] memory userBooks = minting.getUserBooks(user1);
         assertEq(userBooks.length, 2);
@@ -591,7 +768,13 @@ contract KttyWorldMintingTest is Test {
         uint256[] memory pool1Books = new uint256[](5);
         for (uint256 i = 0; i < 5; i++) {
             pool1Books[i] = i + 1;
-            _createBook(i + 1, i + 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i + 1,
+                i + 1,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         vm.prank(owner);
@@ -599,10 +782,14 @@ contract KttyWorldMintingTest is Test {
 
         // User1 tries to mint 3 books (exceeds allowance of 2)
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
         vm.expectRevert(KttyWorldMinting.InsufficientAllowance.selector);
-        minting.mint{value: NATIVE_ONLY_PRICE * 3}(3, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: NATIVE_ONLY_PRICE * 3}(
+            3,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
     }
 
     function test_RevertWhen_Round1MintingNotWhitelisted() public {
@@ -616,7 +803,13 @@ contract KttyWorldMintingTest is Test {
         uint256[] memory pool1Books = new uint256[](5);
         for (uint256 i = 0; i < 5; i++) {
             pool1Books[i] = i + 1;
-            _createBook(i + 1, i + 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i + 1,
+                i + 1,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         vm.prank(owner);
@@ -624,10 +817,14 @@ contract KttyWorldMintingTest is Test {
 
         // User1 tries to mint without being whitelisted
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
         vm.expectRevert(KttyWorldMinting.InsufficientAllowance.selector);
-        minting.mint{value: NATIVE_ONLY_PRICE}(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: NATIVE_ONLY_PRICE}(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
     }
 
     // Test Hybrid Payment
@@ -636,15 +833,21 @@ contract KttyWorldMintingTest is Test {
         vm.prank(owner);
         minting.configureRound(4, block.timestamp, block.timestamp + 1 days);
 
-        // Create and load some books
-        uint256[] memory pool1Books = new uint256[](5);
+        // Create and load some books into bucket 0 (Round 4 uses buckets)
+        uint256[] memory bucket0Books = new uint256[](5);
         for (uint256 i = 0; i < 5; i++) {
-            pool1Books[i] = i + 1;
-            _createBook(i + 1, i + 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            bucket0Books[i] = i + 1;
+            _createBook(
+                i + 1,
+                i + 1,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         vm.prank(owner);
-        minting.loadPool1(pool1Books);
+        minting.loadBucket(0, bucket0Books, 5, 0, 0, 0);
 
         // User1 approves KTTY tokens and mints with hybrid payment
         vm.prank(user1);
@@ -654,13 +857,23 @@ contract KttyWorldMintingTest is Test {
         uint256 userKttyBalanceBefore = kttyToken.balanceOf(user1);
 
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
-        minting.mint{value: HYBRID_NATIVE_PRICE}(1, KttyWorldMinting.PaymentType.HYBRID, emptyProof);
+        minting.mint{value: HYBRID_NATIVE_PRICE}(
+            1,
+            KttyWorldMinting.PaymentType.HYBRID,
+            emptyProof
+        );
 
         // Check payments were processed
-        assertEq(treasuryWallet.balance, treasuryBalanceBefore + HYBRID_NATIVE_PRICE);
-        assertEq(kttyToken.balanceOf(user1), userKttyBalanceBefore - HYBRID_KTTY_PRICE);
+        assertEq(
+            treasuryWallet.balance,
+            treasuryBalanceBefore + HYBRID_NATIVE_PRICE
+        );
+        assertEq(
+            kttyToken.balanceOf(user1),
+            userKttyBalanceBefore - HYBRID_KTTY_PRICE
+        );
 
         uint256[] memory userBooks = minting.getUserBooks(user1);
         assertEq(userBooks.length, 1);
@@ -675,18 +888,28 @@ contract KttyWorldMintingTest is Test {
         uint256[] memory pool1Books = new uint256[](5);
         for (uint256 i = 0; i < 5; i++) {
             pool1Books[i] = i + 1;
-            _createBook(i + 1, i + 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i + 1,
+                i + 1,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         vm.prank(owner);
         minting.loadPool1(pool1Books);
 
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         // Try to mint with insufficient native payment
         vm.prank(user1);
         vm.expectRevert(KttyWorldMinting.InsufficientPayment.selector);
-        minting.mint{value: NATIVE_ONLY_PRICE - 1}(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: NATIVE_ONLY_PRICE - 1}(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
     }
 
     function test_ExcessPaymentRefund() public {
@@ -694,24 +917,34 @@ contract KttyWorldMintingTest is Test {
         vm.prank(owner);
         minting.configureRound(4, block.timestamp, block.timestamp + 1 days);
 
-        // Create and load some books
-        uint256[] memory pool1Books = new uint256[](5);
+        // Create and load some books into bucket 0 (Round 4 uses buckets)
+        uint256[] memory bucket0Books = new uint256[](5);
         for (uint256 i = 0; i < 5; i++) {
-            pool1Books[i] = i + 1;
-            _createBook(i + 1, i + 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            bucket0Books[i] = i + 1;
+            _createBook(
+                i + 1,
+                i + 1,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         vm.prank(owner);
-        minting.loadPool1(pool1Books);
+        minting.loadBucket(0, bucket0Books, 5, 0, 0, 0);
 
         uint256 userBalanceBefore = user1.balance;
         uint256 overpayment = 1 ether;
         uint256 totalSent = NATIVE_ONLY_PRICE + overpayment;
 
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
-        minting.mint{value: totalSent}(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: totalSent}(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
 
         // Check user received refund
         assertEq(user1.balance, userBalanceBefore - NATIVE_ONLY_PRICE);
@@ -725,23 +958,29 @@ contract KttyWorldMintingTest is Test {
 
         _createBook(1, 1, [uint256(1), uint256(2), uint256(3)], 1, "NULL");
 
-        uint256[] memory pool1Books = new uint256[](1);
-        pool1Books[0] = 1;
+        uint256[] memory bucket0Books = new uint256[](1);
+        bucket0Books[0] = 1;
 
         vm.prank(owner);
-        minting.loadPool1(pool1Books);
+        minting.loadBucket(0, bucket0Books, 1, 0, 0, 0);
 
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
-        minting.mint{value: NATIVE_ONLY_PRICE}(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: NATIVE_ONLY_PRICE}(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
 
         // Now open the book
         vm.expectEmit(true, true, true, true);
         emit BookOpened(1, user1);
 
         vm.prank(user1);
-        minting.openBook(1);
+        uint256[] memory bookIds = new uint256[](1);
+        bookIds[0] = 1;
+        minting.openBooks(bookIds);
 
         // Check user received the NFT
         assertEq(companions.ownerOf(1), user1);
@@ -763,21 +1002,27 @@ contract KttyWorldMintingTest is Test {
 
         _createBook(1, 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
 
-        uint256[] memory pool1Books = new uint256[](1);
-        pool1Books[0] = 1;
+        uint256[] memory bucket0Books = new uint256[](1);
+        bucket0Books[0] = 1;
 
         vm.prank(owner);
-        minting.loadPool1(pool1Books);
+        minting.loadBucket(0, bucket0Books, 1, 0, 0, 0);
 
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
-        minting.mint{value: NATIVE_ONLY_PRICE}(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: NATIVE_ONLY_PRICE}(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
 
         // User2 tries to open user1's book
         vm.prank(user2);
         vm.expectRevert(KttyWorldMinting.BookNotOwned.selector);
-        minting.openBook(1);
+        uint256[] memory bookIds = new uint256[](1);
+        bookIds[0] = 1;
+        minting.openBooks(bookIds);
     }
 
     function test_RevertWhen_OpenBookAlreadyOpened() public {
@@ -787,25 +1032,31 @@ contract KttyWorldMintingTest is Test {
 
         _createBook(1, 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
 
-        uint256[] memory pool1Books = new uint256[](1);
-        pool1Books[0] = 1;
+        uint256[] memory bucket0Books = new uint256[](1);
+        bucket0Books[0] = 1;
 
         vm.prank(owner);
-        minting.loadPool1(pool1Books);
+        minting.loadBucket(0, bucket0Books, 1, 0, 0, 0);
 
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
-        minting.mint{value: NATIVE_ONLY_PRICE}(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: NATIVE_ONLY_PRICE}(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
 
         // Open the book once
         vm.prank(user1);
-        minting.openBook(1);
+        uint256[] memory bookIds = new uint256[](1);
+        bookIds[0] = 1;
+        minting.openBooks(bookIds);
 
         // Try to open again
         vm.prank(user1);
-        vm.expectRevert(KttyWorldMinting.BookAlreadyOpened.selector);
-        minting.openBook(1);
+        vm.expectRevert();
+        minting.openBooks(bookIds);
     }
 
     function test_RevertWhen_MintZeroQuantity() public {
@@ -813,10 +1064,14 @@ contract KttyWorldMintingTest is Test {
         minting.configureRound(4, block.timestamp, block.timestamp + 1 days);
 
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
         vm.expectRevert(KttyWorldMinting.MaxMintExceeded.selector);
-        minting.mint{value: 0}(0, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: 0}(
+            0,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
     }
 
     function test_RevertWhen_MintExceedsMaxPerTransaction() public {
@@ -824,19 +1079,27 @@ contract KttyWorldMintingTest is Test {
         minting.configureRound(4, block.timestamp, block.timestamp + 1 days);
 
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
         vm.expectRevert(KttyWorldMinting.MaxMintExceeded.selector);
-        minting.mint{value: NATIVE_ONLY_PRICE * (MAX_MINT_PER_TX + 1)}(MAX_MINT_PER_TX + 1, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: NATIVE_ONLY_PRICE * (MAX_MINT_PER_TX + 1)}(
+            MAX_MINT_PER_TX + 1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
     }
 
     function test_RevertWhen_MintInManualRound() public {
         // Current round should be 0 (manual) by default
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
         vm.expectRevert(KttyWorldMinting.RoundNotActive.selector);
-        minting.mint{value: NATIVE_ONLY_PRICE}(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: NATIVE_ONLY_PRICE}(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
     }
 
     function test_GetCurrentRound() public {
@@ -854,50 +1117,240 @@ contract KttyWorldMintingTest is Test {
 
         // Configure Round 2 for current time
         vm.prank(owner);
-        minting.configureRound(2, block.timestamp, block.timestamp + 1 days);
+        minting.configureRound(2, block.timestamp, block.timestamp + 2 days);
         assertEq(minting.getCurrentRound(), 2);
     }
 
-    function test_ViewFunctions() public view {
+    function test_GetUserBooksDetails() public {
+        // Add books with different types
+        _createBook(
+            1,
+            1,
+            [uint256(1), uint256(2), uint256(3)],
+            0,
+            "Type C"
+        );
+        
+        _createBook(
+            2,
+            2,
+            [uint256(1), uint256(2), uint256(3)],
+            1, // Golden ticket ID
+            "Type B"
+        );
+        
+        _createBook(
+            3,
+            3,
+            [uint256(1), uint256(2), uint256(3)],
+            0,
+            "Type A"
+        );
+
+        // Load pool 1 with these books
+        uint256[] memory pool1Books = new uint256[](3);
+        pool1Books[0] = 1;
+        pool1Books[1] = 2;
+        pool1Books[2] = 3;
+        vm.prank(owner);
+        minting.loadPool1(pool1Books);
+
+        // Set up Round 1 and whitelist user1
+        vm.prank(owner);
+        minting.configureRound(1, block.timestamp, block.timestamp + 1 days);
+        
+        address[] memory users = new address[](1);
+        users[0] = user1;
+        uint256[] memory allowances = new uint256[](1);
+        allowances[0] = 5;
+        
+        vm.prank(owner);
+        minting.setWhitelistAllowances(1, users, allowances);
+
+        // Configure payment for round 1
+        vm.prank(owner);
+        minting.configurePayment(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            1 ether,
+            0
+        );
+
+        // User1 mints 3 books
+        bytes32[] memory emptyProof = new bytes32[](0);
+        vm.prank(user1);
+        minting.mint{value: 3 ether}(
+            3,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
+
+        // Test getUserBooksDetails returns correct book details
+        DummyBooks.Book[] memory userBooksDetails = minting.getUserBooksDetails(user1);
+        assertEq(userBooksDetails.length, 3);
+
+        // Verify book details
+        assertEq(userBooksDetails[0].nftId, 1);
+        assertEq(userBooksDetails[0].goldenTicketId, 0);
+        assertFalse(userBooksDetails[0].hasGoldenTicket);
+        assertEq(userBooksDetails[0].series, "Type C");
+
+        assertEq(userBooksDetails[1].nftId, 2);
+        assertEq(userBooksDetails[1].goldenTicketId, 1);
+        assertTrue(userBooksDetails[1].hasGoldenTicket);
+        assertEq(userBooksDetails[1].series, "Type B");
+
+        assertEq(userBooksDetails[2].nftId, 3);
+        assertEq(userBooksDetails[2].goldenTicketId, 0);
+        assertFalse(userBooksDetails[2].hasGoldenTicket);
+        assertEq(userBooksDetails[2].series, "Type A");
+
+        // Verify tool IDs are correct for all books
+        for (uint256 i = 0; i < 3; i++) {
+            assertEq(userBooksDetails[i].toolIds[0], 1);
+            assertEq(userBooksDetails[i].toolIds[1], 2);
+            assertEq(userBooksDetails[i].toolIds[2], 3);
+        }
+
+        // Test that other users get empty results
+        DummyBooks.Book[] memory user2BooksDetails = minting.getUserBooksDetails(user2);
+        assertEq(user2BooksDetails.length, 0);
+    }
+
+    function test_ViewFunctions() public {
         // Test getUserBooks
         uint256[] memory userBooks = minting.getUserBooks(user1);
         assertEq(userBooks.length, 0);
 
+        // Test getUserBooksDetails for user with no books
+        DummyBooks.Book[] memory userBooksDetails = minting.getUserBooksDetails(user1);
+        assertEq(userBooksDetails.length, 0);
+
         // Test getBook for non-existent book
-        KttyWorldMinting.Book memory book = minting.getBook(999);
-        assertEq(book.nftId, 0);
+        vm.expectRevert();
+        DummyBooks.Book memory book = minting.getBook(999);
 
         // Test isBookOpened
         assertFalse(minting.isBookOpened(1));
 
         // Test getPoolAndBucketStatus
-        (uint256 pool1Remaining, uint256 pool2Remaining, uint256 currentBucket, uint256[8] memory bucketRemaining) = minting.getPoolAndBucketStatus();
+        (
+            ,
+            uint256 pool1Remaining,
+            ,
+            uint256 pool2Remaining,
+            uint256 currentBucket,
+            uint256[2][8] memory bucketStats
+        ) = minting.getPoolAndBucketStatus();
         assertEq(pool1Remaining, 0);
         assertEq(pool2Remaining, 0);
         assertEq(currentBucket, 0);
         for (uint256 i = 0; i < 8; i++) {
-            assertEq(bucketRemaining[i], 0);
+            assertEq(bucketStats[i][0], 0);
         }
 
         // Test getWhitelistStatus
-        (uint256 allowance, uint256 minted) = minting.getWhitelistStatus(1, user1);
+        (uint256 allowance, uint256 minted) = minting.getWhitelistStatus(
+            1,
+            user1
+        );
         assertEq(allowance, 0);
         assertEq(minted, 0);
+    }
+
+    // ==================== LEADERBOARD TESTS ====================
+
+    function test_LeaderboardInitialState() public {
+        // Test initial state - no minters
+        (address[] memory wallets, uint256[] memory mints) = minting
+            .getTopMintersLeaderboard();
+
+        assertEq(wallets.length, 0, "Should have no wallets initially");
+        assertEq(mints.length, 0, "Should have no mints initially");
+        assertEq(
+            minting.getTotalUniqueMinters(),
+            0,
+            "Should have no unique minters initially"
+        );
+
+        address testUser = makeAddr("testUser");
+        assertEq(
+            minting.getUserTotalMints(testUser),
+            0,
+            "Test user should have 0 mints initially"
+        );
+    }
+
+    function test_LeaderboardBasicFunctionality() public {
+        // Set up Round 4 (public round) for easy testing
+        vm.prank(owner);
+        minting.configureRound(4, block.timestamp, block.timestamp + 1 days);
+
+        // Create some books for testing
+        for (uint256 i = 1; i <= 10; i++) {
+            _createBook(
+                i,
+                i,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
+        }
+
+        // Load books into a bucket for public minting
+        uint256[] memory poolBooks = new uint256[](10);
+        for (uint256 i = 0; i < 10; i++) {
+            poolBooks[i] = i + 1;
+        }
+
+        vm.prank(owner);
+        minting.loadBucket(0, poolBooks, 10, 0, 0, 0);
+
+        address testUser = makeAddr("testUser");
+        vm.deal(testUser, 10 ether);
+
+        // User mints 3 books
+        vm.prank(testUser);
+        minting.mint{value: 3 ether}(
+            3,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            new bytes32[](0)
+        );
+
+        // Check leaderboard
+        (address[] memory wallets, uint256[] memory mints) = minting
+            .getTopMintersLeaderboard();
+
+        assertEq(wallets.length, 1, "Should have 1 wallet");
+        assertEq(mints.length, 1, "Should have 1 mint count");
+        assertEq(wallets[0], testUser, "Should be test user");
+        assertEq(mints[0], 3, "Should have 3 mints");
+        assertEq(
+            minting.getTotalUniqueMinters(),
+            1,
+            "Should have 1 unique minter"
+        );
+        assertEq(
+            minting.getUserTotalMints(testUser),
+            3,
+            "Test user should have 3 mints"
+        );
     }
 }
 
 // Additional test contract for complex scenarios
 contract KttyWorldMintingEdgeCasesTest is Test {
     KttyWorldMinting public minting;
-    KttyWorldCompanions public companions;
-    KttyWorldTools public tools;
-    KttyWorldCollectibles public collectibles;
+    DummyCompanions public companions;
+    DummyTools public tools;
+    DummyCollectibles public collectibles;
+    DummyBooks public booksNft;
     MockKTTYToken public kttyToken;
-    
+
     address public owner;
     address public treasuryWallet;
     address public user1;
-    
+
     function setUp() public {
         owner = makeAddr("owner");
         treasuryWallet = makeAddr("treasury");
@@ -908,29 +1361,62 @@ contract KttyWorldMintingEdgeCasesTest is Test {
         // Deploy all contracts (simplified setup)
         kttyToken = new MockKTTYToken();
 
-        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
+        DummyCompanions companionsImpl = new DummyCompanions();
         bytes memory companionsInitData = abi.encodeCall(
-            KttyWorldCompanions.initialize,
-            (owner, "KTTY World Companions", "KWC", "https://hidden.com/", 10000)
+            DummyCompanions.initialize,
+            (
+                owner,
+                "KTTY World Companions",
+                "KWC",
+                "https://hidden.com/",
+                10000
+            )
         );
-        ERC1967Proxy companionsProxy = new ERC1967Proxy(address(companionsImpl), companionsInitData);
-        companions = KttyWorldCompanions(address(companionsProxy));
+        ERC1967Proxy companionsProxy = new ERC1967Proxy(
+            address(companionsImpl),
+            companionsInitData
+        );
+        companions = DummyCompanions(address(companionsProxy));
 
-        KttyWorldTools toolsImpl = new KttyWorldTools();
+        DummyTools toolsImpl = new DummyTools();
         bytes memory toolsInitData = abi.encodeCall(
-            KttyWorldTools.initialize,
+            DummyTools.initialize,
             (owner, "https://hidden.com/")
         );
-        ERC1967Proxy toolsProxy = new ERC1967Proxy(address(toolsImpl), toolsInitData);
-        tools = KttyWorldTools(address(toolsProxy));
+        ERC1967Proxy toolsProxy = new ERC1967Proxy(
+            address(toolsImpl),
+            toolsInitData
+        );
+        tools = DummyTools(address(toolsProxy));
 
-        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
+        DummyCollectibles collectiblesImpl = new DummyCollectibles();
         bytes memory collectiblesInitData = abi.encodeCall(
-            KttyWorldCollectibles.initialize,
+            DummyCollectibles.initialize,
             (owner, "https://hidden.com/")
         );
-        ERC1967Proxy collectiblesProxy = new ERC1967Proxy(address(collectiblesImpl), collectiblesInitData);
-        collectibles = KttyWorldCollectibles(address(collectiblesProxy));
+        ERC1967Proxy collectiblesProxy = new ERC1967Proxy(
+            address(collectiblesImpl),
+            collectiblesInitData
+        );
+        collectibles = DummyCollectibles(address(collectiblesProxy));
+
+        DummyBooks booksImpl = new DummyBooks();
+        bytes memory booksInitData = abi.encodeCall(
+            DummyBooks.initialize,
+            (
+                owner,
+                "KTTY World Books",
+                "KWB",
+                10000,
+                "https://hidden.com/",
+                address(0) // Will be set after minting contract deployment
+            )
+        );
+        ERC1967Proxy booksProxy = new ERC1967Proxy(
+            address(booksImpl),
+            booksInitData
+        );
+        booksNft = DummyBooks(address(booksProxy));
 
         KttyWorldMinting mintingImpl = new KttyWorldMinting();
         bytes memory mintingInitData = abi.encodeCall(
@@ -940,13 +1426,20 @@ contract KttyWorldMintingEdgeCasesTest is Test {
                 address(companions),
                 address(tools),
                 address(collectibles),
+                address(booksNft),
                 address(kttyToken),
                 treasuryWallet,
                 10
             )
         );
-        ERC1967Proxy mintingProxy = new ERC1967Proxy(address(mintingImpl), mintingInitData);
+        ERC1967Proxy mintingProxy = new ERC1967Proxy(
+            address(mintingImpl),
+            mintingInitData
+        );
         minting = KttyWorldMinting(address(mintingProxy));
+
+        // Link Books contract to Minting contract
+        booksNft.setMintingContract(address(minting));
 
         // Setup tokens
         tools.addTokenType("tool1.json");
@@ -954,8 +1447,8 @@ contract KttyWorldMintingEdgeCasesTest is Test {
         tools.addTokenType("tool3.json");
         collectibles.addCollectibleType("golden_ticket.json");
 
-        companions.mintAll(address(minting));
-        
+        companions.mintAll(address(minting), 10000);
+
         uint256[] memory toolIds = new uint256[](3);
         uint256[] memory toolAmounts = new uint256[](3);
         for (uint256 i = 0; i < 3; i++) {
@@ -963,14 +1456,46 @@ contract KttyWorldMintingEdgeCasesTest is Test {
             toolAmounts[i] = 10000;
         }
         tools.batchMint(address(minting), toolIds, toolAmounts);
-        
+
         collectibles.mint(address(minting), 1, 500);
 
-        minting.configurePayment(KttyWorldMinting.PaymentType.NATIVE_ONLY, 1 ether, 0);
+        minting.configurePayment(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            1 ether,
+            0
+        );
 
         vm.stopPrank();
 
         vm.deal(user1, 100 ether);
+    }
+
+    // Helper function to create books
+    function _createBook(
+        uint256 bookId,
+        uint256 nftId,
+        uint256[3] memory toolIds,
+        uint256 goldenTicketId,
+        string memory series
+    ) internal {
+        // Prepare arrays for batch minting
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory nftIds = new uint256[](1);
+        uint256[3][] memory toolIdArrays = new uint256[3][](1);
+        uint256[] memory goldenTicketIds = new uint256[](1);
+        string[] memory seriesArr = new string[](1);
+        
+        // Populate arrays
+        tokenIds[0] = bookId;
+        nftIds[0] = nftId;
+        toolIdArrays[0] = toolIds;
+        goldenTicketIds[0] = goldenTicketId;
+        seriesArr[0] = series;
+        
+        // Mint book NFT to minting contract
+        vm.prank(owner);
+        booksNft.batchMintBooks(address(minting), tokenIds, nftIds, toolIdArrays, goldenTicketIds, seriesArr);
     }
 
     function test_CrossBucketMinting() public {
@@ -980,8 +1505,13 @@ contract KttyWorldMintingEdgeCasesTest is Test {
 
         // Create books for buckets
         for (uint256 i = 1; i <= 10; i++) {
-            vm.prank(owner);
-            minting.addBook(i, i, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i,
+                i,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         // Load bucket 0 with only 2 books
@@ -1003,17 +1533,29 @@ contract KttyWorldMintingEdgeCasesTest is Test {
 
         // Set up merkle root for Round 3
         vm.prank(owner);
-        minting.setRound3MerkleRoot(0x103a5da4bd852cab556ff83f6a906cb85a74594b386f20f95f37d6eb0c614557);
+        minting.setRound3MerkleRoot(
+            0x103a5da4bd852cab556ff83f6a906cb85a74594b386f20f95f37d6eb0c614557
+        );
 
         // Mock merkle proof (in real test, this would be proper proof)
         bytes32[] memory proof = new bytes32[](3);
-        proof[0] = 0xc30cdc6a88b24a674fe288a58a537402dbe5ce7d7d889d3cef08fd2ae3e48477;
-        proof[1] = 0x99ee7d1d978da17c87b2b35fa00025d7b13eef1cbcfe3242d757f00cdb89c777;
-        proof[2] = 0xeb9a09586e1c9f485ceebd51159d55c4c0b4c1b207fc119a967a693aa3207d5c;
+        proof[
+            0
+        ] = 0xc30cdc6a88b24a674fe288a58a537402dbe5ce7d7d889d3cef08fd2ae3e48477;
+        proof[
+            1
+        ] = 0x99ee7d1d978da17c87b2b35fa00025d7b13eef1cbcfe3242d757f00cdb89c777;
+        proof[
+            2
+        ] = 0xeb9a09586e1c9f485ceebd51159d55c4c0b4c1b207fc119a967a693aa3207d5c;
 
         // Try to mint 5 books (should take 2 from bucket 0, 3 from bucket 1)
         vm.prank(user1);
-        minting.mint{value: 5 ether}(5, KttyWorldMinting.PaymentType.NATIVE_ONLY, proof);
+        minting.mint{value: 5 ether}(
+            5,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            proof
+        );
 
         uint256[] memory userBooks = minting.getUserBooks(user1);
         assertEq(userBooks.length, 5);
@@ -1024,10 +1566,11 @@ contract KttyWorldMintingEdgeCasesTest is Test {
         assertEq(userBooks[4], 5);
 
         // Check bucket and pool status
-        (, , uint256 currentBucket, uint256[8] memory bucketRemaining) = minting.getPoolAndBucketStatus();
+        (, , , , uint256 currentBucket, uint256[2][8] memory bucketStats) = minting
+            .getPoolAndBucketStatus();
         assertEq(currentBucket, 1); // Should have moved to bucket 1
-        assertEq(bucketRemaining[0], 0); // Bucket 0 should be empty
-        assertEq(bucketRemaining[1], 5); // Bucket 1 should have 5 left
+        assertEq(bucketStats[0][0], 0); // Bucket 0 should be empty
+        assertEq(bucketStats[1][0], 5); // Bucket 1 should have 5 left
     }
 
     function test_PoolExhaustion() public {
@@ -1036,8 +1579,7 @@ contract KttyWorldMintingEdgeCasesTest is Test {
         minting.configureRound(1, block.timestamp, block.timestamp + 1 days);
 
         // Create and load only 1 book in pool 1
-        vm.prank(owner);
-        minting.addBook(1, 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+        _createBook(1, 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
 
         uint256[] memory pool1Books = new uint256[](1);
         pool1Books[0] = 1;
@@ -1056,14 +1598,22 @@ contract KttyWorldMintingEdgeCasesTest is Test {
 
         // First mint should succeed
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
-        minting.mint{value: 1 ether}(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: 1 ether}(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
 
         // Second mint should fail due to pool exhaustion
         vm.prank(user1);
         vm.expectRevert(KttyWorldMinting.PoolExhausted.selector);
-        minting.mint{value: 1 ether}(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: 1 ether}(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
     }
 
     function test_ReentrancyProtection() public {
@@ -1077,19 +1627,20 @@ contract KttyWorldMintingEdgeCasesTest is Test {
 // Test contract for Round 3 with proper merkle tree
 contract KttyWorldMintingRound3Test is Test {
     KttyWorldMinting public minting;
-    KttyWorldCompanions public companions;
-    KttyWorldTools public tools;
-    KttyWorldCollectibles public collectibles;
+    DummyCompanions public companions;
+    DummyTools public tools;
+    DummyCollectibles public collectibles;
+    DummyBooks public booksNft;
     MockKTTYToken public kttyToken;
-    
+
     address public owner;
     address public treasuryWallet;
     address public user1;
     address public user2;
-    
+
     // Simplified merkle tree for testing
     bytes32 public merkleRoot;
-    
+
     function setUp() public {
         owner = makeAddr("owner");
         treasuryWallet = makeAddr("treasury");
@@ -1101,29 +1652,62 @@ contract KttyWorldMintingRound3Test is Test {
         // Deploy all contracts
         kttyToken = new MockKTTYToken();
 
-        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
+        DummyCompanions companionsImpl = new DummyCompanions();
         bytes memory companionsInitData = abi.encodeCall(
-            KttyWorldCompanions.initialize,
-            (owner, "KTTY World Companions", "KWC", "https://hidden.com/", 10000)
+            DummyCompanions.initialize,
+            (
+                owner,
+                "KTTY World Companions",
+                "KWC",
+                "https://hidden.com/",
+                10000
+            )
         );
-        ERC1967Proxy companionsProxy = new ERC1967Proxy(address(companionsImpl), companionsInitData);
-        companions = KttyWorldCompanions(address(companionsProxy));
+        ERC1967Proxy companionsProxy = new ERC1967Proxy(
+            address(companionsImpl),
+            companionsInitData
+        );
+        companions = DummyCompanions(address(companionsProxy));
 
-        KttyWorldTools toolsImpl = new KttyWorldTools();
+        DummyTools toolsImpl = new DummyTools();
         bytes memory toolsInitData = abi.encodeCall(
-            KttyWorldTools.initialize,
+            DummyTools.initialize,
             (owner, "https://hidden.com/")
         );
-        ERC1967Proxy toolsProxy = new ERC1967Proxy(address(toolsImpl), toolsInitData);
-        tools = KttyWorldTools(address(toolsProxy));
+        ERC1967Proxy toolsProxy = new ERC1967Proxy(
+            address(toolsImpl),
+            toolsInitData
+        );
+        tools = DummyTools(address(toolsProxy));
 
-        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
+        DummyCollectibles collectiblesImpl = new DummyCollectibles();
         bytes memory collectiblesInitData = abi.encodeCall(
-            KttyWorldCollectibles.initialize,
+            DummyCollectibles.initialize,
             (owner, "https://hidden.com/")
         );
-        ERC1967Proxy collectiblesProxy = new ERC1967Proxy(address(collectiblesImpl), collectiblesInitData);
-        collectibles = KttyWorldCollectibles(address(collectiblesProxy));
+        ERC1967Proxy collectiblesProxy = new ERC1967Proxy(
+            address(collectiblesImpl),
+            collectiblesInitData
+        );
+        collectibles = DummyCollectibles(address(collectiblesProxy));
+
+        DummyBooks booksImpl = new DummyBooks();
+        bytes memory booksInitData = abi.encodeCall(
+            DummyBooks.initialize,
+            (
+                owner,
+                "KTTY World Books",
+                "KWB",
+                10000,
+                "https://hidden.com/",
+                address(0) // Will be set after minting contract deployment
+            )
+        );
+        ERC1967Proxy booksProxy = new ERC1967Proxy(
+            address(booksImpl),
+            booksInitData
+        );
+        booksNft = DummyBooks(address(booksProxy));
 
         KttyWorldMinting mintingImpl = new KttyWorldMinting();
         bytes memory mintingInitData = abi.encodeCall(
@@ -1133,13 +1717,20 @@ contract KttyWorldMintingRound3Test is Test {
                 address(companions),
                 address(tools),
                 address(collectibles),
+                address(booksNft),
                 address(kttyToken),
                 treasuryWallet,
                 10
             )
         );
-        ERC1967Proxy mintingProxy = new ERC1967Proxy(address(mintingImpl), mintingInitData);
+        ERC1967Proxy mintingProxy = new ERC1967Proxy(
+            address(mintingImpl),
+            mintingInitData
+        );
         minting = KttyWorldMinting(address(mintingProxy));
+
+        // Link Books contract to Minting contract
+        booksNft.setMintingContract(address(minting));
 
         // Setup tokens
         tools.addTokenType("tool1.json");
@@ -1147,8 +1738,8 @@ contract KttyWorldMintingRound3Test is Test {
         tools.addTokenType("tool3.json");
         collectibles.addCollectibleType("golden_ticket.json");
 
-        companions.mintAll(address(minting));
-        
+        companions.mintAll(address(minting), 10000);
+
         uint256[] memory toolIds = new uint256[](3);
         uint256[] memory toolAmounts = new uint256[](3);
         for (uint256 i = 0; i < 3; i++) {
@@ -1156,14 +1747,19 @@ contract KttyWorldMintingRound3Test is Test {
             toolAmounts[i] = 10000;
         }
         tools.batchMint(address(minting), toolIds, toolAmounts);
-        
+
         collectibles.mint(address(minting), 1, 500);
 
-        minting.configurePayment(KttyWorldMinting.PaymentType.NATIVE_ONLY, 1 ether, 0);
+        minting.configurePayment(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            1 ether,
+            0
+        );
 
         // Use the same merkle root generated by our JavaScript script
         merkleRoot = 0x103a5da4bd852cab556ff83f6a906cb85a74594b386f20f95f37d6eb0c614557;
-        
+
         minting.setRound3MerkleRoot(merkleRoot);
 
         vm.stopPrank();
@@ -1172,22 +1768,65 @@ contract KttyWorldMintingRound3Test is Test {
         vm.deal(user2, 100 ether);
     }
 
-    function _generateValidMerkleProof(address user) internal pure returns (bytes32[] memory) {
-        bytes32[] memory proof = new bytes32[](3);
+    // Helper function to create books
+    function _createBook(
+        uint256 bookId,
+        uint256 nftId,
+        uint256[3] memory toolIds,
+        uint256 goldenTicketId,
+        string memory series
+    ) internal {
+        // Prepare arrays for batch minting
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory nftIds = new uint256[](1);
+        uint256[3][] memory toolIdArrays = new uint256[3][](1);
+        uint256[] memory goldenTicketIds = new uint256[](1);
+        string[] memory seriesArr = new string[](1);
         
-        if (user == 0x29E3b139f4393aDda86303fcdAa35F60Bb7092bF) { // user1
-            proof[0] = 0xc30cdc6a88b24a674fe288a58a537402dbe5ce7d7d889d3cef08fd2ae3e48477;
-            proof[1] = 0x99ee7d1d978da17c87b2b35fa00025d7b13eef1cbcfe3242d757f00cdb89c777;
-            proof[2] = 0xeb9a09586e1c9f485ceebd51159d55c4c0b4c1b207fc119a967a693aa3207d5c;
-        } else if (user == 0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e) { // user2
-            proof[0] = 0xa3fd369f375645411b4b9933ecfc861a9760517ee70f0ad6668c4f3f56972dc8;
-            proof[1] = 0x99ee7d1d978da17c87b2b35fa00025d7b13eef1cbcfe3242d757f00cdb89c777;
-            proof[2] = 0xeb9a09586e1c9f485ceebd51159d55c4c0b4c1b207fc119a967a693aa3207d5c;
+        // Populate arrays
+        tokenIds[0] = bookId;
+        nftIds[0] = nftId;
+        toolIdArrays[0] = toolIds;
+        goldenTicketIds[0] = goldenTicketId;
+        seriesArr[0] = series;
+        
+        // Mint book NFT to minting contract
+        vm.prank(owner);
+        booksNft.batchMintBooks(address(minting), tokenIds, nftIds, toolIdArrays, goldenTicketIds, seriesArr);
+    }
+
+    function _generateValidMerkleProof(
+        address user
+    ) internal pure returns (bytes32[] memory) {
+        bytes32[] memory proof = new bytes32[](3);
+
+        if (user == 0x29E3b139f4393aDda86303fcdAa35F60Bb7092bF) {
+            // user1
+            proof[
+                0
+            ] = 0xc30cdc6a88b24a674fe288a58a537402dbe5ce7d7d889d3cef08fd2ae3e48477;
+            proof[
+                1
+            ] = 0x99ee7d1d978da17c87b2b35fa00025d7b13eef1cbcfe3242d757f00cdb89c777;
+            proof[
+                2
+            ] = 0xeb9a09586e1c9f485ceebd51159d55c4c0b4c1b207fc119a967a693aa3207d5c;
+        } else if (user == 0x1D96F2f6BeF1202E4Ce1Ff6Dad0c2CB002861d3e) {
+            // user2
+            proof[
+                0
+            ] = 0xa3fd369f375645411b4b9933ecfc861a9760517ee70f0ad6668c4f3f56972dc8;
+            proof[
+                1
+            ] = 0x99ee7d1d978da17c87b2b35fa00025d7b13eef1cbcfe3242d757f00cdb89c777;
+            proof[
+                2
+            ] = 0xeb9a09586e1c9f485ceebd51159d55c4c0b4c1b207fc119a967a693aa3207d5c;
         } else {
             // Return empty proof for non-whitelisted addresses
             proof = new bytes32[](0);
         }
-        
+
         return proof;
     }
 
@@ -1198,8 +1837,13 @@ contract KttyWorldMintingRound3Test is Test {
 
         // Create books for bucket testing
         for (uint256 i = 1; i <= 15; i++) {
-            vm.prank(owner);
-            minting.addBook(i, i, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i,
+                i,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         // Load bucket 0 with specific distribution
@@ -1222,17 +1866,22 @@ contract KttyWorldMintingRound3Test is Test {
 
         // User1 mints from Round 3 with valid merkle proof
         bytes32[] memory proof = _generateValidMerkleProof(user1);
-        
+
         vm.prank(user1);
-        minting.mint{value: 3 ether}(3, KttyWorldMinting.PaymentType.NATIVE_ONLY, proof);
+        minting.mint{value: 3 ether}(
+            3,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            proof
+        );
 
         uint256[] memory userBooks = minting.getUserBooks(user1);
         assertEq(userBooks.length, 3);
-        
+
         // Check bucket status
-        (, , uint256 currentBucket, uint256[8] memory bucketRemaining) = minting.getPoolAndBucketStatus();
+        (, , , , uint256 currentBucket, uint256[2][8] memory bucketStats) = minting
+            .getPoolAndBucketStatus();
         assertEq(currentBucket, 0);
-        assertEq(bucketRemaining[0], 7); // 10 - 3 = 7 remaining
+        assertEq(bucketStats[0][0], 7); // 10 - 3 = 7 remaining
     }
 
     function test_Round3InvalidMerkleProof() public {
@@ -1241,8 +1890,7 @@ contract KttyWorldMintingRound3Test is Test {
         minting.configureRound(3, block.timestamp, block.timestamp + 1 days);
 
         // Create and load some books
-        vm.prank(owner);
-        minting.addBook(1, 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+        _createBook(1, 1, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
 
         uint256[] memory bucket0Books = new uint256[](1);
         bucket0Books[0] = 1;
@@ -1253,24 +1901,33 @@ contract KttyWorldMintingRound3Test is Test {
         // User tries to mint with invalid proof
         bytes32[] memory invalidProof = new bytes32[](1);
         invalidProof[0] = keccak256("invalid");
-        
+
         vm.prank(user1);
         vm.expectRevert(KttyWorldMinting.InvalidProof.selector);
-        minting.mint{value: 1 ether}(1, KttyWorldMinting.PaymentType.NATIVE_ONLY, invalidProof);
+        minting.mint{value: 1 ether}(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            invalidProof
+        );
     }
 
     function test_Round3PoolCarryover() public {
         // Set up Round 1 with leftover pool (use future timestamps to avoid issues)
         uint256 round1Start = block.timestamp + 1 hours;
         uint256 round1End = block.timestamp + 2 hours;
-        
+
         vm.prank(owner);
         minting.configureRound(1, round1Start, round1End);
 
         // Create books for pool 1
         for (uint256 i = 1; i <= 5; i++) {
-            vm.prank(owner);
-            minting.addBook(i, i, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i,
+                i,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         uint256[] memory pool1Books = new uint256[](5);
@@ -1287,8 +1944,13 @@ contract KttyWorldMintingRound3Test is Test {
 
         // Create books for bucket
         for (uint256 i = 6; i <= 10; i++) {
-            vm.prank(owner);
-            minting.addBook(i, i, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i,
+                i,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         uint256[] memory bucket0Books = new uint256[](5);
@@ -1299,39 +1961,61 @@ contract KttyWorldMintingRound3Test is Test {
         vm.prank(owner);
         minting.loadBucket(0, bucket0Books, 5, 0, 0, 0);
 
-        // User1 mints - should get from pool 1 first
+        // Distribute spillover from pool 1 to buckets (new spillover logic)
+        vm.prank(owner);
+        minting.distributeSpilloverToBuckets();
+
+        // User1 mints - should get from bucket 0 (which now contains spillover books)
         bytes32[] memory proof = _generateValidMerkleProof(user1);
-        
+
         vm.prank(user1);
-        minting.mint{value: 3 ether}(3, KttyWorldMinting.PaymentType.NATIVE_ONLY, proof);
+        minting.mint{value: 3 ether}(
+            3,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            proof
+        );
 
         uint256[] memory userBooks = minting.getUserBooks(user1);
         assertEq(userBooks.length, 3);
-        // Should get books 1, 2, 3 from pool 1
-        assertEq(userBooks[0], 1);
-        assertEq(userBooks[1], 2);
-        assertEq(userBooks[2], 3);
+        
+        // Books should include some from the spillover (books 1-5) and bucket (books 6-10)
+        // We can't guarantee exact order due to random distribution, but all should be valid book IDs
+        for (uint256 i = 0; i < userBooks.length; i++) {
+            assertTrue(userBooks[i] >= 1 && userBooks[i] <= 10, "Book ID should be between 1 and 10");
+        }
 
-        // Pool 1 should have 2 remaining, bucket 0 should be untouched
-        (uint256 pool1Remaining, , , uint256[8] memory bucketRemaining) = minting.getPoolAndBucketStatus();
-        assertEq(pool1Remaining, 2);
-        assertEq(bucketRemaining[0], 5);
+        // Pool 1 should be exhausted after spillover distribution
+        (
+            ,
+            uint256 pool1Remaining,
+            ,
+            ,
+            ,
+            uint256[2][8] memory bucketStats
+        ) = minting.getPoolAndBucketStatus();
+        assertEq(pool1Remaining, 0, "Pool 1 should be exhausted after spillover distribution");
+        
+        // Bucket 0 should have original 5 books + 1 spillover book - 3 minted = 3 remaining
+        // (5 spillover books distributed: 1 each to buckets 0-4, 0 to buckets 5-7)
+        uint256 totalBucket0Remaining = bucketStats[0][0];
+        assertEq(totalBucket0Remaining, 3, "Bucket 0 should have 3 books remaining after minting 3");
     }
 }
 
 // Test contract for Round 4 public minting
 contract KttyWorldMintingRound4Test is Test {
     KttyWorldMinting public minting;
-    KttyWorldCompanions public companions;
-    KttyWorldTools public tools;
-    KttyWorldCollectibles public collectibles;
+    DummyCompanions public companions;
+    DummyTools public tools;
+    DummyCollectibles public collectibles;
+    DummyBooks public booksNft;
     MockKTTYToken public kttyToken;
-    
+
     address public owner;
     address public treasuryWallet;
     address public user1;
     address public user2;
-    
+
     function setUp() public {
         owner = makeAddr("owner");
         treasuryWallet = makeAddr("treasury");
@@ -1343,29 +2027,62 @@ contract KttyWorldMintingRound4Test is Test {
         // Deploy all contracts (simplified setup)
         kttyToken = new MockKTTYToken();
 
-        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
+        DummyCompanions companionsImpl = new DummyCompanions();
         bytes memory companionsInitData = abi.encodeCall(
-            KttyWorldCompanions.initialize,
-            (owner, "KTTY World Companions", "KWC", "https://hidden.com/", 10000)
+            DummyCompanions.initialize,
+            (
+                owner,
+                "KTTY World Companions",
+                "KWC",
+                "https://hidden.com/",
+                10000
+            )
         );
-        ERC1967Proxy companionsProxy = new ERC1967Proxy(address(companionsImpl), companionsInitData);
-        companions = KttyWorldCompanions(address(companionsProxy));
+        ERC1967Proxy companionsProxy = new ERC1967Proxy(
+            address(companionsImpl),
+            companionsInitData
+        );
+        companions = DummyCompanions(address(companionsProxy));
 
-        KttyWorldTools toolsImpl = new KttyWorldTools();
+        DummyTools toolsImpl = new DummyTools();
         bytes memory toolsInitData = abi.encodeCall(
-            KttyWorldTools.initialize,
+            DummyTools.initialize,
             (owner, "https://hidden.com/")
         );
-        ERC1967Proxy toolsProxy = new ERC1967Proxy(address(toolsImpl), toolsInitData);
-        tools = KttyWorldTools(address(toolsProxy));
+        ERC1967Proxy toolsProxy = new ERC1967Proxy(
+            address(toolsImpl),
+            toolsInitData
+        );
+        tools = DummyTools(address(toolsProxy));
 
-        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
+        DummyCollectibles collectiblesImpl = new DummyCollectibles();
         bytes memory collectiblesInitData = abi.encodeCall(
-            KttyWorldCollectibles.initialize,
+            DummyCollectibles.initialize,
             (owner, "https://hidden.com/")
         );
-        ERC1967Proxy collectiblesProxy = new ERC1967Proxy(address(collectiblesImpl), collectiblesInitData);
-        collectibles = KttyWorldCollectibles(address(collectiblesProxy));
+        ERC1967Proxy collectiblesProxy = new ERC1967Proxy(
+            address(collectiblesImpl),
+            collectiblesInitData
+        );
+        collectibles = DummyCollectibles(address(collectiblesProxy));
+
+        DummyBooks booksImpl = new DummyBooks();
+        bytes memory booksInitData = abi.encodeCall(
+            DummyBooks.initialize,
+            (
+                owner,
+                "KTTY World Books",
+                "KWB",
+                10000,
+                "https://hidden.com/",
+                address(0) // Will be set after minting contract deployment
+            )
+        );
+        ERC1967Proxy booksProxy = new ERC1967Proxy(
+            address(booksImpl),
+            booksInitData
+        );
+        booksNft = DummyBooks(address(booksProxy));
 
         KttyWorldMinting mintingImpl = new KttyWorldMinting();
         bytes memory mintingInitData = abi.encodeCall(
@@ -1375,13 +2092,20 @@ contract KttyWorldMintingRound4Test is Test {
                 address(companions),
                 address(tools),
                 address(collectibles),
+                address(booksNft),
                 address(kttyToken),
                 treasuryWallet,
                 10
             )
         );
-        ERC1967Proxy mintingProxy = new ERC1967Proxy(address(mintingImpl), mintingInitData);
+        ERC1967Proxy mintingProxy = new ERC1967Proxy(
+            address(mintingImpl),
+            mintingInitData
+        );
         minting = KttyWorldMinting(address(mintingProxy));
+
+        // Link Books contract to Minting contract
+        booksNft.setMintingContract(address(minting));
 
         // Setup tokens
         tools.addTokenType("tool1.json");
@@ -1389,8 +2113,8 @@ contract KttyWorldMintingRound4Test is Test {
         tools.addTokenType("tool3.json");
         collectibles.addCollectibleType("golden_ticket.json");
 
-        companions.mintAll(address(minting));
-        
+        companions.mintAll(address(minting), 10000);
+
         uint256[] memory toolIds = new uint256[](3);
         uint256[] memory toolAmounts = new uint256[](3);
         for (uint256 i = 0; i < 3; i++) {
@@ -1398,15 +2122,47 @@ contract KttyWorldMintingRound4Test is Test {
             toolAmounts[i] = 10000;
         }
         tools.batchMint(address(minting), toolIds, toolAmounts);
-        
+
         collectibles.mint(address(minting), 1, 500);
 
-        minting.configurePayment(KttyWorldMinting.PaymentType.NATIVE_ONLY, 1 ether, 0);
+        minting.configurePayment(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            1 ether,
+            0
+        );
 
         vm.stopPrank();
 
         vm.deal(user1, 100 ether);
         vm.deal(user2, 100 ether);
+    }
+
+    // Helper function to create books
+    function _createBook(
+        uint256 bookId,
+        uint256 nftId,
+        uint256[3] memory toolIds,
+        uint256 goldenTicketId,
+        string memory series
+    ) internal {
+        // Prepare arrays for batch minting
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory nftIds = new uint256[](1);
+        uint256[3][] memory toolIdArrays = new uint256[3][](1);
+        uint256[] memory goldenTicketIds = new uint256[](1);
+        string[] memory seriesArr = new string[](1);
+        
+        // Populate arrays
+        tokenIds[0] = bookId;
+        nftIds[0] = nftId;
+        toolIdArrays[0] = toolIds;
+        goldenTicketIds[0] = goldenTicketId;
+        seriesArr[0] = series;
+        
+        // Mint book NFT to minting contract
+        vm.prank(owner);
+        booksNft.batchMintBooks(address(minting), tokenIds, nftIds, toolIdArrays, goldenTicketIds, seriesArr);
     }
 
     function test_Round4PublicMinting() public {
@@ -1416,8 +2172,13 @@ contract KttyWorldMintingRound4Test is Test {
 
         // Create books for testing
         for (uint256 i = 1; i <= 20; i++) {
-            vm.prank(owner);
-            minting.addBook(i, i, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i,
+                i,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         // Load some books in buckets
@@ -1439,24 +2200,33 @@ contract KttyWorldMintingRound4Test is Test {
 
         // Anyone can mint in Round 4 (no whitelist)
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
-        minting.mint{value: 5 ether}(5, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: 5 ether}(
+            5,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
 
         vm.prank(user2);
-        minting.mint{value: 3 ether}(3, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: 3 ether}(
+            3,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
 
         // Check both users got their books
         uint256[] memory user1Books = minting.getUserBooks(user1);
         uint256[] memory user2Books = minting.getUserBooks(user2);
-        
+
         assertEq(user1Books.length, 5);
         assertEq(user2Books.length, 3);
 
         // Check bucket status
-        (, , uint256 currentBucket, uint256[8] memory bucketRemaining) = minting.getPoolAndBucketStatus();
+        (, , , , uint256 currentBucket, uint256[2][8] memory bucketStats) = minting
+            .getPoolAndBucketStatus();
         assertEq(currentBucket, 0);
-        assertEq(bucketRemaining[0], 2); // 10 - 8 = 2 remaining
+        assertEq(bucketStats[0][0], 2); // 10 - 8 = 2 remaining
     }
 
     function test_Round4WithLeftoverPools() public {
@@ -1465,10 +2235,10 @@ contract KttyWorldMintingRound4Test is Test {
         uint256 round1End = block.timestamp + 2 hours;
         uint256 round2Start = block.timestamp + 2 hours;
         uint256 round2End = block.timestamp + 3 hours;
-        
+
         vm.prank(owner);
         minting.configureRound(1, round1Start, round1End);
-        
+
         vm.prank(owner);
         minting.configureRound(2, round2Start, round2End);
 
@@ -1477,8 +2247,13 @@ contract KttyWorldMintingRound4Test is Test {
 
         // Create books for pools
         for (uint256 i = 1; i <= 15; i++) {
-            vm.prank(owner);
-            minting.addBook(i, i, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i,
+                i,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         // Load pool 1 and 2 with books
@@ -1508,22 +2283,44 @@ contract KttyWorldMintingRound4Test is Test {
         vm.prank(owner);
         minting.configureRound(4, block.timestamp, block.timestamp + 1 days);
 
-        // Mint in Round 4 - should consume pools first
+        // Distribute spillover from pools to buckets (new spillover logic)
+        vm.prank(owner);
+        minting.distributeSpilloverToBuckets();
+
+        // Mint in Round 4 - should consume from buckets (which now contain spillover)
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         uint256 currentRound = minting.getCurrentRound();
         console.log("Current Round:", currentRound);
         vm.prank(user1);
-        minting.mint{value: 12 ether}(12, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: 12 ether}(
+            12,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
 
         uint256[] memory userBooks = minting.getUserBooks(user1);
         assertEq(userBooks.length, 12);
 
-        // Should have consumed all of pool 1 (5), all of pool 2 (5), and 2 from bucket 0
-        (uint256 pool1Remaining, uint256 pool2Remaining, , uint256[8] memory bucketRemaining) = minting.getPoolAndBucketStatus();
-        assertEq(pool1Remaining, 0);
-        assertEq(pool2Remaining, 0);
-        assertEq(bucketRemaining[0], 3); // 5 - 2 = 3 remaining
+        // After spillover distribution, pools should be exhausted and buckets should have remaining books
+        (
+            ,
+            uint256 pool1Remaining,
+            ,
+            uint256 pool2Remaining,
+            ,
+            uint256[2][8] memory bucketStats
+        ) = minting.getPoolAndBucketStatus();
+        assertEq(pool1Remaining, 0, "Pool 1 should be exhausted after spillover distribution");
+        assertEq(pool2Remaining, 0, "Pool 2 should be exhausted after spillover distribution");
+        
+        // Total books distributed: 5 (bucket) + 10 (spillover) = 15 books
+        // After minting 12: 15 - 12 = 3 books remaining across all buckets
+        uint256 totalRemaining = 0;
+        for (uint256 i = 0; i < 8; i++) {
+            totalRemaining += bucketStats[i][0];
+        }
+        assertEq(totalRemaining, 3, "Should have 3 books remaining across all buckets");
     }
 
     function test_Round4MaxMintPerTransaction() public {
@@ -1533,8 +2330,13 @@ contract KttyWorldMintingRound4Test is Test {
 
         // Create books
         for (uint256 i = 1; i <= 20; i++) {
-            vm.prank(owner);
-            minting.addBook(i, i, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i,
+                i,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
 
         uint256[] memory bucket0Books = new uint256[](20);
@@ -1547,9 +2349,13 @@ contract KttyWorldMintingRound4Test is Test {
 
         // Try to mint max allowed (10)
         bytes32[] memory emptyProof = new bytes32[](0);
-        
+
         vm.prank(user1);
-        minting.mint{value: 10 ether}(10, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: 10 ether}(
+            10,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
 
         uint256[] memory userBooks = minting.getUserBooks(user1);
         assertEq(userBooks.length, 10);
@@ -1557,54 +2363,91 @@ contract KttyWorldMintingRound4Test is Test {
         // Try to mint more than max (should fail)
         vm.prank(user2);
         vm.expectRevert(KttyWorldMinting.MaxMintExceeded.selector);
-        minting.mint{value: 11 ether}(11, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof);
+        minting.mint{value: 11 ether}(
+            11,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            emptyProof
+        );
     }
 }
 
 // Fuzz and Invariant Testing
 contract KttyWorldMintingInvariantTest is Test {
     KttyWorldMinting public minting;
-    KttyWorldCompanions public companions;
-    KttyWorldTools public tools;
-    KttyWorldCollectibles public collectibles;
+    DummyCompanions public companions;
+    DummyTools public tools;
+    DummyCollectibles public collectibles;
+    DummyBooks public booksNft;
     MockKTTYToken public kttyToken;
     KttyWorldMintingHandler public handler;
-    
+
     address public owner;
     address public treasuryWallet;
-    
+
     function setUp() public {
         owner = makeAddr("owner");
         treasuryWallet = makeAddr("treasury");
 
-        vm.startPrank(owner);
 
         // Deploy all contracts
         kttyToken = new MockKTTYToken();
 
-        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
+        DummyCompanions companionsImpl = new DummyCompanions();
         bytes memory companionsInitData = abi.encodeCall(
-            KttyWorldCompanions.initialize,
-            (owner, "KTTY World Companions", "KWC", "https://hidden.com/", 10000)
+            DummyCompanions.initialize,
+            (
+                owner,
+                "KTTY World Companions",
+                "KWC",
+                "https://hidden.com/",
+                10000
+            )
         );
-        ERC1967Proxy companionsProxy = new ERC1967Proxy(address(companionsImpl), companionsInitData);
-        companions = KttyWorldCompanions(address(companionsProxy));
+        ERC1967Proxy companionsProxy = new ERC1967Proxy(
+            address(companionsImpl),
+            companionsInitData
+        );
+        companions = DummyCompanions(address(companionsProxy));
 
-        KttyWorldTools toolsImpl = new KttyWorldTools();
+        DummyTools toolsImpl = new DummyTools();
         bytes memory toolsInitData = abi.encodeCall(
-            KttyWorldTools.initialize,
+            DummyTools.initialize,
             (owner, "https://hidden.com/")
         );
-        ERC1967Proxy toolsProxy = new ERC1967Proxy(address(toolsImpl), toolsInitData);
-        tools = KttyWorldTools(address(toolsProxy));
+        ERC1967Proxy toolsProxy = new ERC1967Proxy(
+            address(toolsImpl),
+            toolsInitData
+        );
+        tools = DummyTools(address(toolsProxy));
 
-        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
+        DummyCollectibles collectiblesImpl = new DummyCollectibles();
         bytes memory collectiblesInitData = abi.encodeCall(
-            KttyWorldCollectibles.initialize,
+            DummyCollectibles.initialize,
             (owner, "https://hidden.com/")
         );
-        ERC1967Proxy collectiblesProxy = new ERC1967Proxy(address(collectiblesImpl), collectiblesInitData);
-        collectibles = KttyWorldCollectibles(address(collectiblesProxy));
+        ERC1967Proxy collectiblesProxy = new ERC1967Proxy(
+            address(collectiblesImpl),
+            collectiblesInitData
+        );
+        collectibles = DummyCollectibles(address(collectiblesProxy));
+
+        DummyBooks booksImpl = new DummyBooks();
+        bytes memory booksInitData = abi.encodeCall(
+            DummyBooks.initialize,
+            (
+                owner,
+                "KTTY World Books",
+                "KWB",
+                10000,
+                "https://hidden.com/",
+                address(0) // Will be set after minting contract deployment
+            )
+        );
+        ERC1967Proxy booksProxy = new ERC1967Proxy(
+            address(booksImpl),
+            booksInitData
+        );
+        booksNft = DummyBooks(address(booksProxy));
 
         KttyWorldMinting mintingImpl = new KttyWorldMinting();
         bytes memory mintingInitData = abi.encodeCall(
@@ -1614,13 +2457,21 @@ contract KttyWorldMintingInvariantTest is Test {
                 address(companions),
                 address(tools),
                 address(collectibles),
+                address(booksNft),
                 address(kttyToken),
                 treasuryWallet,
                 10
             )
         );
-        ERC1967Proxy mintingProxy = new ERC1967Proxy(address(mintingImpl), mintingInitData);
+        ERC1967Proxy mintingProxy = new ERC1967Proxy(
+            address(mintingImpl),
+            mintingInitData
+        );
         minting = KttyWorldMinting(address(mintingProxy));
+
+        vm.startPrank(owner);
+        // Link Books contract to Minting contract
+        booksNft.setMintingContract(address(minting));
 
         // Setup tokens
         tools.addTokenType("tool1.json");
@@ -1628,8 +2479,8 @@ contract KttyWorldMintingInvariantTest is Test {
         tools.addTokenType("tool3.json");
         collectibles.addCollectibleType("golden_ticket.json");
 
-        companions.mintAll(address(minting));
-        
+        companions.mintAll(address(minting), 10000);
+
         uint256[] memory toolIds = new uint256[](3);
         uint256[] memory toolAmounts = new uint256[](3);
         for (uint256 i = 0; i < 3; i++) {
@@ -1637,28 +2488,62 @@ contract KttyWorldMintingInvariantTest is Test {
             toolAmounts[i] = 50000;
         }
         tools.batchMint(address(minting), toolIds, toolAmounts);
-        
+
         collectibles.mint(address(minting), 1, 500);
 
-        minting.configurePayment(KttyWorldMinting.PaymentType.NATIVE_ONLY, 1 ether, 0);
+        minting.configurePayment(
+            1,
+            KttyWorldMinting.PaymentType.NATIVE_ONLY,
+            1 ether,
+            0
+        );
 
         // Set up Round 4 for testing
         minting.configureRound(4, block.timestamp, block.timestamp + 365 days);
 
         vm.stopPrank();
 
-        handler = new KttyWorldMintingHandler(minting, owner);
+        handler = new KttyWorldMintingHandler(minting, booksNft, owner);
         targetContract(address(handler));
+    }
+
+    // Helper function to create books
+    function _createBook(
+        uint256 bookId,
+        uint256 nftId,
+        uint256[3] memory toolIds,
+        uint256 goldenTicketId,
+        string memory series
+    ) internal {
+        // Prepare arrays for batch minting
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory nftIds = new uint256[](1);
+        uint256[3][] memory toolIdArrays = new uint256[3][](1);
+        uint256[] memory goldenTicketIds = new uint256[](1);
+        string[] memory seriesArr = new string[](1);
+        
+        // Populate arrays
+        tokenIds[0] = bookId;
+        nftIds[0] = nftId;
+        toolIdArrays[0] = toolIds;
+        goldenTicketIds[0] = goldenTicketId;
+        seriesArr[0] = series;
+        
+        // Mint book NFT to minting contract
+        booksNft.batchMintBooks(address(minting), tokenIds, nftIds, toolIdArrays, goldenTicketIds, seriesArr);
     }
 
     function invariant_BookOwnershipIntegrity() public view {
         // All minted books should have valid owners
-        assertEq(handler.ghost_totalBooksMinted(), handler.ghost_totalBooksOwned());
+        assertEq(
+            handler.ghost_totalBooksMinted(),
+            handler.ghost_totalBooksOwned()
+        );
     }
 
     function invariant_PoolAndBucketConsistency() public view {
         // Pool and bucket indices should never exceed their bounds
-        (, , uint256 currentBucket, ) = minting.getPoolAndBucketStatus();
+        (, , , , uint256 currentBucket, ) = minting.getPoolAndBucketStatus();
         assertLe(currentBucket, 8);
     }
 
@@ -1670,88 +2555,152 @@ contract KttyWorldMintingInvariantTest is Test {
 
 contract KttyWorldMintingHandler is Test {
     KttyWorldMinting public minting;
+    DummyBooks public booksNft;
     address public owner;
-    
+
     uint256 public ghost_totalBooksMinted;
     uint256 public ghost_totalBooksOwned;
     uint256 public ghost_totalPayments;
-    
+
     address[] public actors;
     uint256 public constant MAX_ACTORS = 5;
-    
-    constructor(KttyWorldMinting _minting, address _owner) {
-        minting = _minting;
-        owner = _owner;
+
+    // Helper function to create books
+    function _createBook(
+        uint256 bookId,
+        uint256 nftId,
+        uint256[3] memory toolIds,
+        uint256 goldenTicketId,
+        string memory series
+    ) internal {
+        // Prepare arrays for batch minting
+        uint256[] memory tokenIds = new uint256[](1);
+        uint256[] memory nftIds = new uint256[](1);
+        uint256[3][] memory toolIdArrays = new uint256[3][](1);
+        uint256[] memory goldenTicketIds = new uint256[](1);
+        string[] memory seriesArr = new string[](1);
         
+        // Populate arrays
+        tokenIds[0] = bookId;
+        nftIds[0] = nftId;
+        toolIdArrays[0] = toolIds;
+        goldenTicketIds[0] = goldenTicketId;
+        seriesArr[0] = series;
+        
+        // Mint book NFT to minting contract
+        booksNft.batchMintBooks(address(minting), tokenIds, nftIds, toolIdArrays, goldenTicketIds, seriesArr);
+    }
+
+    constructor(KttyWorldMinting _minting, DummyBooks _booksNft, address _owner) {
+        minting = _minting;
+        booksNft = _booksNft;
+        owner = _owner;
+
         for (uint i = 0; i < MAX_ACTORS; i++) {
             address actor = makeAddr(string(abi.encode("actor", i)));
             actors.push(actor);
             vm.deal(actor, 1000 ether);
         }
-        
+
         // Setup some books for testing
         _setupTestBooks();
     }
-    
+
     function _setupTestBooks() internal {
         vm.startPrank(owner);
-        
+
         // Create 100 test books
         for (uint256 i = 1; i <= 100; i++) {
-            minting.addBook(i, i, [uint256(1), uint256(2), uint256(3)], 0, "NULL");
+            _createBook(
+                i,
+                i,
+                [uint256(1), uint256(2), uint256(3)],
+                0,
+                "NULL"
+            );
         }
-        
+
         // Load books into buckets
         uint256[] memory bucket0Books = new uint256[](50);
         for (uint256 i = 0; i < 50; i++) {
             bucket0Books[i] = i + 1;
         }
         minting.loadBucket(0, bucket0Books, 50, 0, 0, 0);
-        
+
         uint256[] memory bucket1Books = new uint256[](50);
         for (uint256 i = 0; i < 50; i++) {
             bucket1Books[i] = i + 51;
         }
         minting.loadBucket(1, bucket1Books, 50, 0, 0, 0);
-        
+
         vm.stopPrank();
     }
-    
+
     function mint(uint256 actorSeed, uint256 quantity) external {
         quantity = bound(quantity, 1, 5);
         address actor = actors[bound(actorSeed, 0, actors.length - 1)];
-        
+
         uint256 cost = quantity * 1 ether;
         if (actor.balance < cost) return;
-        
+
         bytes32[] memory emptyProof = new bytes32[](0);
-        
-        try minting.mint{value: cost}(quantity, KttyWorldMinting.PaymentType.NATIVE_ONLY, emptyProof) {
+
+        try
+            minting.mint{value: cost}(
+                quantity,
+                KttyWorldMinting.PaymentType.NATIVE_ONLY,
+                emptyProof
+            )
+        {
             ghost_totalBooksMinted += quantity;
             ghost_totalPayments += cost;
-            
+
             uint256[] memory userBooks = minting.getUserBooks(actor);
             ghost_totalBooksOwned += userBooks.length;
         } catch {
             // Mint failed, no state change
         }
     }
-    
+
     function openBook(uint256 actorSeed, uint256 bookIdSeed) external {
         address actor = actors[bound(actorSeed, 0, actors.length - 1)];
         uint256[] memory userBooks = minting.getUserBooks(actor);
-        
+
         if (userBooks.length == 0) return;
-        
+
         uint256 bookIndex = bound(bookIdSeed, 0, userBooks.length - 1);
         uint256 bookId = userBooks[bookIndex];
-        
+
         if (minting.isBookOpened(bookId)) return;
-        
-        try minting.openBook(bookId) {
+
+        uint256[] memory bookIds = new uint256[](1);
+        bookIds[0] = bookId;
+        try minting.openBooks(bookIds) {
             // Book opened successfully
         } catch {
             // Opening failed
         }
+    }
+
+    // ==================== LEADERBOARD TESTS ====================
+    function test_LeaderboardInitialState() public {
+        // Test initial state - no minters
+        (address[] memory wallets, uint256[] memory mints) = minting
+            .getTopMintersLeaderboard();
+
+        assertEq(wallets.length, 0, "Should have no wallets initially");
+        assertEq(mints.length, 0, "Should have no mints initially");
+        assertEq(
+            minting.getTotalUniqueMinters(),
+            0,
+            "Should have no unique minters initially"
+        );
+
+        address testUser = makeAddr("testUser");
+        assertEq(
+            minting.getUserTotalMints(testUser),
+            0,
+            "Test user should have 0 mints initially"
+        );
     }
 }

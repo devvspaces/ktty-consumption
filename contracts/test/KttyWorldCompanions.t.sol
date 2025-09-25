@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {KttyWorldCompanions} from "src/KttyWorldCompanions.sol";
+import {DummyCompanions} from "src/KttyWorldCompanions.sol";
 
 contract KttyWorldCompanionsTest is Test {
-    KttyWorldCompanions public companions;
+    DummyCompanions public companions;
     
     address public owner;
     address public mintContract;
@@ -29,11 +29,11 @@ contract KttyWorldCompanionsTest is Test {
         user = makeAddr("user");
         
         // Deploy implementation
-        KttyWorldCompanions implementation = new KttyWorldCompanions();
+        DummyCompanions implementation = new DummyCompanions();
         
         // Prepare initialization data
         bytes memory initData = abi.encodeCall(
-            KttyWorldCompanions.initialize,
+            DummyCompanions.initialize,
             (owner, NAME, SYMBOL, HIDDEN_URI, MAX_SUPPLY)
         );
         
@@ -41,7 +41,7 @@ contract KttyWorldCompanionsTest is Test {
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         
         // Cast proxy to interface
-        companions = KttyWorldCompanions(address(proxy));
+        companions = DummyCompanions(address(proxy));
     }
 
     function test_Initialize() public view {
@@ -76,7 +76,7 @@ contract KttyWorldCompanionsTest is Test {
     function test_RevertWhen_BatchMintZeroQuantity() public {
         vm.startPrank(owner);
         
-        vm.expectRevert(KttyWorldCompanions.BatchSizeZero.selector);
+        vm.expectRevert(DummyCompanions.BatchSizeZero.selector);
         companions.batchMint(mintContract, 0);
         
         vm.stopPrank();
@@ -85,7 +85,7 @@ contract KttyWorldCompanionsTest is Test {
     function test_RevertWhen_BatchMintExceedsMaxSupply() public {
         vm.startPrank(owner);
         
-        vm.expectRevert(KttyWorldCompanions.ExceedsMaxSupply.selector);
+        vm.expectRevert(DummyCompanions.ExceedsMaxSupply.selector);
         companions.batchMint(mintContract, MAX_SUPPLY + 1);
         
         vm.stopPrank();
@@ -103,7 +103,7 @@ contract KttyWorldCompanionsTest is Test {
     function test_MintAll() public {
         vm.startPrank(owner);
         
-        companions.mintAll(mintContract);
+        companions.mintAll(mintContract, MAX_SUPPLY);
         
         assertEq(companions.totalSupply(), MAX_SUPPLY);
         assertEq(companions.balanceOf(mintContract), MAX_SUPPLY);
@@ -116,10 +116,10 @@ contract KttyWorldCompanionsTest is Test {
     function test_RevertWhen_MintAllAlreadyMaxed() public {
         vm.startPrank(owner);
         
-        companions.mintAll(mintContract);
+        companions.mintAll(mintContract, MAX_SUPPLY);
         
-        vm.expectRevert(KttyWorldCompanions.MaxSupplyReached.selector);
-        companions.mintAll(mintContract);
+        vm.expectRevert(DummyCompanions.MaxSupplyReached.selector);
+        companions.mintAll(mintContract, MAX_SUPPLY);
         
         vm.stopPrank();
     }
@@ -219,7 +219,7 @@ contract KttyWorldCompanionsTest is Test {
     }
 
     function test_RevertWhen_TokenURIInvalidToken() public {
-        vm.expectRevert(KttyWorldCompanions.InvalidTokenId.selector);
+        vm.expectRevert(DummyCompanions.InvalidTokenId.selector);
         companions.tokenURI(1);
     }
 
@@ -306,7 +306,7 @@ contract KttyWorldCompanionsTest is Test {
 }
 
 contract KttyWorldCompanionsInvariantTest is Test {
-    KttyWorldCompanions public companions;
+    DummyCompanions public companions;
     KttyWorldCompanionsHandler public handler;
     
     address public owner;
@@ -316,11 +316,11 @@ contract KttyWorldCompanionsInvariantTest is Test {
         owner = makeAddr("owner");
         
         // Deploy implementation
-        KttyWorldCompanions implementation = new KttyWorldCompanions();
+        DummyCompanions implementation = new DummyCompanions();
         
         // Prepare initialization data
         bytes memory initData = abi.encodeCall(
-            KttyWorldCompanions.initialize,
+            DummyCompanions.initialize,
             (owner, "KTTY World Companions", "KWC", "https://hidden.com/", MAX_SUPPLY)
         );
         
@@ -328,7 +328,7 @@ contract KttyWorldCompanionsInvariantTest is Test {
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         
         // Cast proxy to interface
-        companions = KttyWorldCompanions(address(proxy));
+        companions = DummyCompanions(address(proxy));
         handler = new KttyWorldCompanionsHandler(companions, owner);
         
         targetContract(address(handler));
@@ -357,13 +357,13 @@ contract KttyWorldCompanionsInvariantTest is Test {
 }
 
 contract KttyWorldCompanionsHandler is Test {
-    KttyWorldCompanions public companions;
+    DummyCompanions public companions;
     address public owner;
     
     uint256 public ghost_totalBalance;
     address[] public actors;
 
-    constructor(KttyWorldCompanions _companions, address _owner) {
+    constructor(DummyCompanions _companions, address _owner) {
         companions = _companions;
         owner = _owner;
         

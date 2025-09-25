@@ -1,21 +1,13 @@
 const { ethers } = require('ethers');
 const fs = require('fs');
 const path = require('path');
+const MINTING_ABI = require("./../out/KttyWorldMinting.sol/KttyWorldMinting.json").abi;
 require('dotenv').config();
+
 
 // Configuration
 const DISTRIBUTIONS_FILE = path.join(__dirname, 'book-distributions.json');
 const PROGRESS_FILE = path.join(__dirname, 'distributions-loaded-progress.json');
-
-// Contract ABI for the methods we need
-const MINTING_ABI = [
-    "function loadPool1(uint256[] calldata bookIds) external",
-    "function loadPool2(uint256[] calldata bookIds) external", 
-    "function loadBucket(uint256 bucketIndex, uint256[] calldata bookIds, uint256 nullCount, uint256 oneOfOneCount, uint256 goldenTicketCount, uint256 basicCount) external",
-    "function getBook(uint256 bookId) external view returns (tuple(uint256 nftId, uint256[3] toolIds, uint256 goldenTicketId, bool hasGoldenTicket, string nftType))",
-    "function getPoolAndBucketStatus() external view returns (uint256 pool1Remaining, uint256 pool2Remaining, uint256 currentBucket, uint256[8] memory bucketRemaining)",
-    "function owner() external view returns (address)"
-];
 
 /**
  * Sleep for specified milliseconds
@@ -37,7 +29,7 @@ function loadProgress() {
             console.warn('⚠️  Error reading progress file, starting fresh:', error.message);
         }
     }
-    
+
     return {
         pool1Loaded: false,
         pool2Loaded: false,
@@ -71,7 +63,7 @@ function saveProgress(progress) {
  */
 async function validateBookIds(contract, bookIds, description) {
     console.log(`🔍 Validating ${bookIds.length} book IDs for ${description}...`);
-    
+
     for (const bookId of bookIds) {
         try {
             const book = await contract.getBook(bookId);
@@ -82,7 +74,7 @@ async function validateBookIds(contract, bookIds, description) {
             throw new Error(`Validation failed for book ${bookId} in ${description}: ${error.message}`);
         }
     }
-    
+
     console.log(`✅ All book IDs validated for ${description}`);
 }
 
@@ -96,32 +88,7 @@ function calculateBucketStats(bookIds, allBooks) {
         goldenTicketCount: 0,
         basicCount: 0
     };
-    
-    for (const bookId of bookIds) {
-        const book = allBooks.find(b => b.bookId === bookId);
-        if (!book) {
-            throw new Error(`Book ${bookId} not found in all-books.json`);
-        }
-        
-        switch (book.nftType) {
-            case "Null KTTY":
-                stats.nullCount++;
-                break;
-            case "1/1 KTTY":
-                stats.oneOfOneCount++;
-                break;
-            case "Core KTTY":
-                stats.basicCount++;
-                break;
-            default:
-                throw new Error(`Unknown NFT type: ${book.nftType} for book ${bookId}`);
-        }
-        
-        if (book.hasGoldenTicket) {
-            stats.goldenTicketCount++;
-        }
-    }
-    
+
     return stats;
 }
 
@@ -133,31 +100,33 @@ async function loadPoolWithRetry(contract, poolNumber, bookIds, maxRetries = 3) 
         try {
             console.log(`📤 Loading Pool ${poolNumber} (attempt ${attempt}/${maxRetries})...`);
             console.log(`📚 Book IDs: [${bookIds.join(', ')}]`);
-            
+
             const methodName = `loadPool${poolNumber}`;
             const tx = await contract[methodName](bookIds, {
-                gasLimit: 1000000 // Adjust as needed
+                gasLimit: 1000000, // Adjust as needed
+                maxPriorityFeePerGas: ethers.utils.parseUnits("20", "gwei"), // Add this
+                maxFeePerGas: ethers.utils.parseUnits("50", "gwei") // Add this
             });
-            
+
             console.log(`⏳ Transaction sent: ${tx.hash}`);
             console.log('⏳ Waiting for confirmation...');
-            
+
             const receipt = await tx.wait();
-            
+
             if (receipt.status === 1) {
                 console.log(`✅ Pool ${poolNumber} loaded successfully! Gas used: ${receipt.gasUsed.toString()}`);
                 return { success: true, hash: tx.hash, gasUsed: receipt.gasUsed.toString() };
             } else {
                 throw new Error('Transaction failed');
             }
-            
+
         } catch (error) {
             console.error(`❌ Pool ${poolNumber} attempt ${attempt} failed:`, error.message);
-            
+
             if (attempt === maxRetries) {
                 return { success: false, error: error.message };
             }
-            
+
             // Exponential backoff
             const delayMs = Math.pow(2, attempt) * 1000;
             console.log(`⏳ Retrying in ${delayMs / 1000} seconds...`);
@@ -175,7 +144,7 @@ async function loadBucketWithRetry(contract, bucketIndex, bookIds, stats, maxRet
             console.log(`📤 Loading Bucket ${bucketIndex + 1} (attempt ${attempt}/${maxRetries})...`);
             console.log(`📚 Book IDs: [${bookIds.join(', ')}]`);
             console.log(`📊 Stats: NULL=${stats.nullCount}, 1/1=${stats.oneOfOneCount}, Golden=${stats.goldenTicketCount}, Basic=${stats.basicCount}`);
-            
+
             const tx = await contract.loadBucket(
                 bucketIndex,
                 bookIds,
@@ -184,29 +153,31 @@ async function loadBucketWithRetry(contract, bucketIndex, bookIds, stats, maxRet
                 stats.goldenTicketCount,
                 stats.basicCount,
                 {
-                    gasLimit: 1000000 // Adjust as needed
+                    gasLimit: 1000000, // Adjust as needed
+                    maxPriorityFeePerGas: ethers.utils.parseUnits("20", "gwei"), // Add this
+                    maxFeePerGas: ethers.utils.parseUnits("50", "gwei") // Add this
                 }
             );
-            
+
             console.log(`⏳ Transaction sent: ${tx.hash}`);
             console.log('⏳ Waiting for confirmation...');
-            
+
             const receipt = await tx.wait();
-            
+
             if (receipt.status === 1) {
                 console.log(`✅ Bucket ${bucketIndex + 1} loaded successfully! Gas used: ${receipt.gasUsed.toString()}`);
                 return { success: true, hash: tx.hash, gasUsed: receipt.gasUsed.toString() };
             } else {
                 throw new Error('Transaction failed');
             }
-            
+
         } catch (error) {
             console.error(`❌ Bucket ${bucketIndex + 1} attempt ${attempt} failed:`, error.message);
-            
+
             if (attempt === maxRetries) {
                 return { success: false, error: error.message };
             }
-            
+
             // Exponential backoff
             const delayMs = Math.pow(2, attempt) * 1000;
             console.log(`⏳ Retrying in ${delayMs / 1000} seconds...`);
@@ -220,49 +191,49 @@ async function loadBucketWithRetry(contract, bucketIndex, bookIds, stats, maxRet
  */
 async function loadDistributions() {
     console.log('🗂️  Starting KTTY World Distributions Loading...\n');
-    
+
     // Validate environment
     if (!process.env.PRIVATE_KEY) {
         throw new Error('PRIVATE_KEY not found in environment variables');
     }
-    
+
     if (!process.env.RPC_URL) {
         throw new Error('RPC_URL not found in environment variables');
     }
-    
+
     if (!process.env.MINTING_CONTRACT_ADDRESS) {
         throw new Error('MINTING_CONTRACT_ADDRESS not found in environment variables');
     }
-    
+
     // Load distributions data
     if (!fs.existsSync(DISTRIBUTIONS_FILE)) {
         throw new Error(`Distributions file not found: ${DISTRIBUTIONS_FILE}`);
     }
-    
+
     const distributions = JSON.parse(fs.readFileSync(DISTRIBUTIONS_FILE, 'utf8'));
     console.log(`📖 Loaded distributions from ${DISTRIBUTIONS_FILE}`);
-    
+
     // Load all books for statistics calculation
     const allBooksFile = path.join(__dirname, 'all-books.json');
     if (!fs.existsSync(allBooksFile)) {
         throw new Error(`All books file not found: ${allBooksFile}`);
     }
-    
+
     const allBooks = JSON.parse(fs.readFileSync(allBooksFile, 'utf8'));
     console.log(`📚 Loaded ${allBooks.length} books for statistics calculation`);
-    
+
     // Load progress
     const progress = loadProgress();
-    
+
     // Setup provider and contract
-    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+    const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
     const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
     const contract = new ethers.Contract(process.env.MINTING_CONTRACT_ADDRESS, MINTING_ABI, wallet);
-    
+
     console.log(`🔗 Connected to RPC: ${process.env.RPC_URL}`);
     console.log(`👤 Wallet address: ${wallet.address}`);
     console.log(`📄 Contract address: ${process.env.MINTING_CONTRACT_ADDRESS}`);
-    
+
     // Check if we're the owner
     try {
         const owner = await contract.owner();
@@ -273,17 +244,17 @@ async function loadDistributions() {
     } catch (error) {
         throw new Error(`Failed to verify ownership: ${error.message}`);
     }
-    
+
     progress.status = 'in_progress';
-    
+
     // Load Pool 1
     if (!progress.pool1Loaded) {
         console.log('\n--- Loading Pool 1 ---');
-        
+
         await validateBookIds(contract, distributions.pool1, 'Pool 1');
-        
+
         const result = await loadPoolWithRetry(contract, 1, distributions.pool1);
-        
+
         if (result.success) {
             progress.pool1Loaded = true;
             progress.lastTransactionHash = result.hash;
@@ -295,20 +266,20 @@ async function loadDistributions() {
             saveProgress(progress);
             throw new Error(`Failed to load Pool 1: ${result.error}`);
         }
-        
+
         await sleep(2000); // Wait between operations
     } else {
         console.log('⏭️  Pool 1 already loaded, skipping');
     }
-    
+
     // Load Pool 2
     if (!progress.pool2Loaded) {
         console.log('\n--- Loading Pool 2 ---');
-        
+
         await validateBookIds(contract, distributions.pool2, 'Pool 2');
-        
+
         const result = await loadPoolWithRetry(contract, 2, distributions.pool2);
-        
+
         if (result.success) {
             progress.pool2Loaded = true;
             progress.lastTransactionHash = result.hash;
@@ -320,33 +291,33 @@ async function loadDistributions() {
             saveProgress(progress);
             throw new Error(`Failed to load Pool 2: ${result.error}`);
         }
-        
+
         await sleep(2000); // Wait between operations
     } else {
         console.log('⏭️  Pool 2 already loaded, skipping');
     }
-    
+
     // Load Buckets
     for (let bucketIndex = 0; bucketIndex < 8; bucketIndex++) {
         const bucketKey = `bucket${bucketIndex + 1}`;
         const bucketName = `Bucket ${bucketIndex + 1}`;
-        
+
         if (!progress.bucketsLoaded[bucketKey]) {
             console.log(`\n--- Loading ${bucketName} ---`);
-            
+
             const bucketBookIds = distributions.pool3[bucketKey];
-            
+
             if (!bucketBookIds || !Array.isArray(bucketBookIds)) {
                 throw new Error(`Invalid bucket data for ${bucketName}`);
             }
-            
+
             await validateBookIds(contract, bucketBookIds, bucketName);
-            
+
             // Calculate statistics for this bucket
             const stats = calculateBucketStats(bucketBookIds, allBooks);
-            
+
             const result = await loadBucketWithRetry(contract, bucketIndex, bucketBookIds, stats);
-            
+
             if (result.success) {
                 progress.bucketsLoaded[bucketKey] = true;
                 progress.lastTransactionHash = result.hash;
@@ -358,56 +329,56 @@ async function loadDistributions() {
                 saveProgress(progress);
                 throw new Error(`Failed to load ${bucketName}: ${result.error}`);
             }
-            
+
             if (bucketIndex < 7) { // Don't wait after the last bucket
                 await sleep(2000); // Wait between operations
             }
-            
+
         } else {
             console.log(`⏭️  ${bucketName} already loaded, skipping`);
         }
     }
-    
+
     // Final validation
     console.log('\n🔍 Final validation...');
-    
+
     try {
         const status = await contract.getPoolAndBucketStatus();
         console.log('📊 Final pool and bucket status:');
         console.log(`   - Pool 1 remaining: ${status.pool1Remaining}`);
         console.log(`   - Pool 2 remaining: ${status.pool2Remaining}`);
         console.log(`   - Current bucket: ${status.currentBucket}`);
-        console.log('   - Bucket remaining:', status.bucketRemaining.map(r => r.toString()));
-        
+        console.log('   - Bucket remaining:', status.bucketStats.map(r => r[0].toString()));
+
         // Validate that pools and buckets have the expected counts
         const expectedPool1Size = distributions.pool1.length;
         const expectedPool2Size = distributions.pool2.length;
-        
+
         if (status.pool1Remaining.toString() !== expectedPool1Size.toString()) {
             throw new Error(`Pool 1 size mismatch: expected ${expectedPool1Size}, got ${status.pool1Remaining}`);
         }
-        
+
         if (status.pool2Remaining.toString() !== expectedPool2Size.toString()) {
             throw new Error(`Pool 2 size mismatch: expected ${expectedPool2Size}, got ${status.pool2Remaining}`);
         }
-        
+
         for (let i = 0; i < 8; i++) {
             const expectedBucketSize = distributions.pool3[`bucket${i + 1}`].length;
-            if (status.bucketRemaining[i].toString() !== expectedBucketSize.toString()) {
-                throw new Error(`Bucket ${i + 1} size mismatch: expected ${expectedBucketSize}, got ${status.bucketRemaining[i]}`);
+            if (status.bucketStats[i][0].toString() !== expectedBucketSize.toString()) {
+                throw new Error(`Bucket ${i + 1} size mismatch: expected ${expectedBucketSize}, got ${status.bucketStats[i]}`);
             }
         }
-        
+
         console.log('✅ All pool and bucket sizes validated successfully');
-        
+
     } catch (error) {
         throw new Error(`Final validation failed: ${error.message}`);
     }
-    
+
     // Mark as completed
     progress.status = 'completed';
     saveProgress(progress);
-    
+
     console.log('\n🎉 All distributions loaded successfully!');
     console.log(`📊 Final stats:`);
     console.log(`   - Pool 1: ${distributions.pool1.length} books`);
