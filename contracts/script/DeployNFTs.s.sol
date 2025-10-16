@@ -3,28 +3,27 @@ pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {DummyCompanions} from "../src/KttyWorldCompanions.sol";
-import {DummyBooks} from "../src/KttyWorldBooks.sol";
-import {DummyTools} from "../src/KttyWorldTools.sol";
-import {DummyCollectibles} from "../src/KttyWorldCollectibles.sol";
+import {KttyWorldCompanions} from "../src/KttyWorldCompanions.sol";
+import {KttyWorldBooks} from "../src/KttyWorldBooks.sol";
+import {KttyWorldTools} from "../src/KttyWorldTools.sol";
+import {KttyWorldCollectibles} from "../src/KttyWorldCollectibles.sol";
 
 contract DeployNFTs is Script {
     // Configuration constants
     uint256 constant COMPANION_SUPPLY = 100; // Max supply for companions
     uint256 constant BOOKS_SUPPLY = 100; // Max supply for books
-    string constant HIDDEN_URI = "https://indigo-neat-flyingfish-41.mypinata.cloud/ipfs/bafybeibkiqzjz6iiuxxqaurbnb3ouspmgg55rzbxjvvhbp2lk2tqajrasa/tools/2.json";
-    string constant BASE_URI_COMPANIONS = "https://black-reasonable-ocelot-529.mypinata.cloud/ipfs/bafybeiflwlojpcexy7gw6oebwee4446k7w6fvh3ysymlxisww6bgq32te4/";
-    string constant BASE_URI_BOOKS = "https://black-reasonable-ocelot-529.mypinata.cloud/ipfs/bafybeihyvdjafbutsmslfex4bu3ss7tynbwxub7fr2p2tpmptbyugtccf4/";
-    string constant BASE_URI_TOOLS = "https://black-reasonable-ocelot-529.mypinata.cloud/ipfs/bafybeibpnxv2jfbjvvwyyeasopoxuyvee6msi4ywg73o6m2nmwax5qtaum/";
-    string constant BASE_URI_COLLECTIBLES = "https://black-reasonable-ocelot-529.mypinata.cloud/ipfs/bafybeia46jm6vblurem5ddvtng6whyywoj3ar2bbpejfg5vrusafseapq4/";
+    string constant HIDDEN_URI = "https://amber-eligible-dragon-276.mypinata.cloud/ipfs/bafybeia4rmyhhx7gsygqctklk6fgh5qfksnigvesfp7aspzi3umeakg7eq/";
+    string constant BASE_URI_COMPANIONS = "https://amber-eligible-dragon-276.mypinata.cloud/ipfs/bafybeiflwlojpcexy7gw6oebwee4446k7w6fvh3ysymlxisww6bgq32te4/";
+    string constant BASE_URI_BOOKS = "https://amber-eligible-dragon-276.mypinata.cloud/ipfs/bafybeihyvdjafbutsmslfex4bu3ss7tynbwxub7fr2p2tpmptbyugtccf4/";
+    string constant BASE_URI_TOOLS = "https://amber-eligible-dragon-276.mypinata.cloud/ipfs/bafybeigjay3sf2tla2w5ogzmyfvvvyrlbzubxtw4kwr7wv5zdpgsnj7zj4/";
+    string constant BASE_URI_COLLECTIBLES = "https://amber-eligible-dragon-276.mypinata.cloud/ipfs/bafybeifexe36gumcatag4bzss23swafuwgfbtqrcqrwaq77ejni6b72czq/";
     
     // Tool configuration - Now supports 15 tools
-    uint256 constant TOOLS_PER_TYPE = 300;
     uint256 constant TOTAL_TOOL_TYPES = 15;
     
     // Golden ticket configuration
     uint256 constant GOLDEN_TICKET_SUPPLY = 100;
-    string constant GOLDEN_TICKET_URI = "https://black-reasonable-ocelot-529.mypinata.cloud/ipfs/bafybeia46jm6vblurem5ddvtng6whyywoj3ar2bbpejfg5vrusafseapq4/1.json";
+    string constant GOLDEN_TICKET_URI = "https://amber-eligible-dragon-276.mypinata.cloud/ipfs/bafybeifexe36gumcatag4bzss23swafuwgfbtqrcqrwaq77ejni6b72czq/1.json";
 
     // Deployment results
     struct DeploymentResult {
@@ -60,24 +59,24 @@ contract DeployNFTs is Script {
     }
     
     function deployAllNFTs(address owner) internal returns (DeploymentResult memory result) {
-        string memory COMPANION_NAME = "Dummy Companions";
-        string memory BOOK_NAME = "Dummy Books";
+        string memory COMPANION_NAME = "companion";
+        string memory BOOK_NAME = "book";
 
         console.log("\n--- Deploying Companions Contract ---");
         
         // Deploy Companions
-        DummyCompanions companionsImpl = new DummyCompanions();
+        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
         console.log("Companions Implementation:", address(companionsImpl));
         
         bytes memory companionsInitData = abi.encodeCall(
-            DummyCompanions.initialize,
+            KttyWorldCompanions.initialize,
             (owner, COMPANION_NAME, "KWC", HIDDEN_URI, COMPANION_SUPPLY)
         );
         
         ERC1967Proxy companionsProxy = new ERC1967Proxy(address(companionsImpl), companionsInitData);
         console.log("Companions Proxy:", address(companionsProxy));
         
-        DummyCompanions companions = DummyCompanions(address(companionsProxy));
+        KttyWorldCompanions companions = KttyWorldCompanions(address(companionsProxy));
         
         // Set base URI for companions
         companions.setBaseTokenUri(BASE_URI_COMPANIONS);
@@ -86,18 +85,18 @@ contract DeployNFTs is Script {
         console.log("\n--- Deploying Books Contract ---");
         
         // Deploy Books
-        DummyBooks booksImpl = new DummyBooks();
+        KttyWorldBooks booksImpl = new KttyWorldBooks();
         console.log("Books Implementation:", address(booksImpl));
         
         bytes memory booksInitData = abi.encodeCall(
-            DummyBooks.initialize,
+            KttyWorldBooks.initialize,
             (owner, BOOK_NAME, "KWB", BOOKS_SUPPLY, HIDDEN_URI, address(0))
         );
         
         ERC1967Proxy booksProxy = new ERC1967Proxy(address(booksImpl), booksInitData);
         console.log("Books Proxy:", address(booksProxy));
         
-        DummyBooks books = DummyBooks(address(booksProxy));
+        KttyWorldBooks books = KttyWorldBooks(address(booksProxy));
         
         // Set base URI for books
         books.setBaseTokenURI(BASE_URI_BOOKS);
@@ -106,22 +105,22 @@ contract DeployNFTs is Script {
         console.log("\n--- Deploying Tools Contract ---");
         
         // Deploy Tools
-        DummyTools toolsImpl = new DummyTools();
+        KttyWorldTools toolsImpl = new KttyWorldTools();
         console.log("Tools Implementation:", address(toolsImpl));
         
         bytes memory toolsInitData = abi.encodeCall(
-            DummyTools.initialize,
+            KttyWorldTools.initialize,
             (owner, HIDDEN_URI)
         );
         
         ERC1967Proxy toolsProxy = new ERC1967Proxy(address(toolsImpl), toolsInitData);
         console.log("Tools Proxy:", address(toolsProxy));
         
-        DummyTools tools = DummyTools(address(toolsProxy));
+        KttyWorldTools tools = KttyWorldTools(address(toolsProxy));
         
         // Set base URI for tools
         tools.setBaseTokenUri(BASE_URI_TOOLS);
-        console.log("Tools base URI set:", BASE_URI_TOOLS);
+        tools.setRevealed(true);
         
         // Add tool token types
         uint256[] memory toolTokenIds = new uint256[](TOTAL_TOOL_TYPES);
@@ -137,22 +136,22 @@ contract DeployNFTs is Script {
         console.log("\n--- Deploying Collectibles Contract ---");
         
         // Deploy Collectibles
-        DummyCollectibles collectiblesImpl = new DummyCollectibles();
+        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
         console.log("Collectibles Implementation:", address(collectiblesImpl));
         
         bytes memory collectiblesInitData = abi.encodeCall(
-            DummyCollectibles.initialize,
+            KttyWorldCollectibles.initialize,
             (owner, HIDDEN_URI)
         );
         
         ERC1967Proxy collectiblesProxy = new ERC1967Proxy(address(collectiblesImpl), collectiblesInitData);
         console.log("Collectibles Proxy:", address(collectiblesProxy));
         
-        DummyCollectibles collectibles = DummyCollectibles(address(collectiblesProxy));
+        KttyWorldCollectibles collectibles = KttyWorldCollectibles(address(collectiblesProxy));
         
         // Set base URI for collectibles
         collectibles.setBaseTokenUri(BASE_URI_COLLECTIBLES);
-        console.log("Collectibles base URI set:", BASE_URI_COLLECTIBLES);
+        collectibles.setRevealed(true);
         
         // Add golden ticket collectible type
         console.log("\n--- Adding Golden Ticket Collectible Type ---");
@@ -197,7 +196,6 @@ contract DeployNFTs is Script {
         console.log("Companion Max Supply:", COMPANION_SUPPLY);
         console.log("Books Max Supply:", BOOKS_SUPPLY);
         console.log("Total Tool Types:", TOTAL_TOOL_TYPES);
-        console.log("Tools Per Type:", TOOLS_PER_TYPE);
         console.log("Golden Ticket Supply:", GOLDEN_TICKET_SUPPLY);
         
         console.log("\n--- Next Steps ---");

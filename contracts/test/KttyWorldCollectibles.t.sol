@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {DummyCollectibles} from "src/KttyWorldCollectibles.sol";
+import {KttyWorldCollectibles} from "src/KttyWorldCollectibles.sol";
 
 contract KttyWorldCollectiblesTest is Test {
-    DummyCollectibles public collectibles;
+    KttyWorldCollectibles public collectibles;
     
     address public owner;
     address public mintContract;
@@ -31,11 +31,11 @@ contract KttyWorldCollectiblesTest is Test {
         user = makeAddr("user");
         
         // Deploy implementation
-        DummyCollectibles implementation = new DummyCollectibles();
+        KttyWorldCollectibles implementation = new KttyWorldCollectibles();
         
         // Prepare initialization data
         bytes memory initData = abi.encodeCall(
-            DummyCollectibles.initialize,
+            KttyWorldCollectibles.initialize,
             (owner, HIDDEN_URI)
         );
         
@@ -43,7 +43,7 @@ contract KttyWorldCollectiblesTest is Test {
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         
         // Cast proxy to interface
-        collectibles = DummyCollectibles(address(proxy));
+        collectibles = KttyWorldCollectibles(address(proxy));
     }
 
     function test_Initialize() public view {
@@ -159,7 +159,7 @@ contract KttyWorldCollectiblesTest is Test {
         amounts[0] = 100;
         amounts[1] = 200;
         
-        vm.expectRevert(DummyCollectibles.ArrayLengthMismatch.selector);
+        vm.expectRevert(KttyWorldCollectibles.ArrayLengthMismatch.selector);
         collectibles.batchMint(mintContract, tokenIds, amounts);
         
         vm.stopPrank();
@@ -174,7 +174,7 @@ contract KttyWorldCollectiblesTest is Test {
         tokenIds[0] = 999; // Non-existent token
         amounts[0] = 100;
         
-        vm.expectRevert(DummyCollectibles.TokenNotExists.selector);
+        vm.expectRevert(KttyWorldCollectibles.TokenNotExists.selector);
         collectibles.batchMint(mintContract, tokenIds, amounts);
         
         vm.stopPrank();
@@ -191,7 +191,7 @@ contract KttyWorldCollectiblesTest is Test {
         tokenIds[0] = tokenId;
         amounts[0] = 0;
         
-        vm.expectRevert(DummyCollectibles.ZeroQuantity.selector);
+        vm.expectRevert(KttyWorldCollectibles.ZeroQuantity.selector);
         collectibles.batchMint(mintContract, tokenIds, amounts);
         
         vm.stopPrank();
@@ -280,7 +280,7 @@ contract KttyWorldCollectiblesTest is Test {
     function test_RevertWhen_SetTokenUriNotExists() public {
         vm.startPrank(owner);
         
-        vm.expectRevert(DummyCollectibles.TokenNotExists.selector);
+        vm.expectRevert(KttyWorldCollectibles.TokenNotExists.selector);
         collectibles.setTokenUri(999, "new-uri");
         
         vm.stopPrank();
@@ -323,7 +323,7 @@ contract KttyWorldCollectiblesTest is Test {
     }
 
     function test_RevertWhen_URITokenNotExists() public {
-        vm.expectRevert(DummyCollectibles.TokenNotExists.selector);
+        vm.expectRevert(KttyWorldCollectibles.TokenNotExists.selector);
         collectibles.uri(999);
     }
 
@@ -431,7 +431,7 @@ contract KttyWorldCollectiblesTest is Test {
 }
 
 contract KttyWorldCollectiblesInvariantTest is Test {
-    DummyCollectibles public collectibles;
+    KttyWorldCollectibles public collectibles;
     KttyWorldCollectiblesHandler public handler;
     
     address public owner;
@@ -440,11 +440,11 @@ contract KttyWorldCollectiblesInvariantTest is Test {
         owner = makeAddr("owner");
         
         // Deploy implementation
-        DummyCollectibles implementation = new DummyCollectibles();
+        KttyWorldCollectibles implementation = new KttyWorldCollectibles();
         
         // Prepare initialization data
         bytes memory initData = abi.encodeCall(
-            DummyCollectibles.initialize,
+            KttyWorldCollectibles.initialize,
             (owner, "https://hidden.com/")
         );
         
@@ -452,7 +452,7 @@ contract KttyWorldCollectiblesInvariantTest is Test {
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         
         // Cast proxy to interface
-        collectibles = DummyCollectibles(address(proxy));
+        collectibles = KttyWorldCollectibles(address(proxy));
         handler = new KttyWorldCollectiblesHandler(collectibles, owner);
         
         targetContract(address(handler));
@@ -478,14 +478,14 @@ contract KttyWorldCollectiblesInvariantTest is Test {
 }
 
 contract KttyWorldCollectiblesHandler is Test {
-    DummyCollectibles public collectibles;
+    KttyWorldCollectibles public collectibles;
     address public owner;
     
     uint256 public ghost_totalMinted;
     address[] public actors;
     uint256[] public tokenIds;
 
-    constructor(DummyCollectibles _collectibles, address _owner) {
+    constructor(KttyWorldCollectibles _collectibles, address _owner) {
         collectibles = _collectibles;
         owner = _owner;
         

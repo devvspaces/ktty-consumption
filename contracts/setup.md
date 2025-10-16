@@ -6,6 +6,10 @@
 5. Mint the books
 6. Set round 1 and round 2 allowances whitelist
 7. Set round 3 merkle root, ensure to update the leaves also in the frontend
+8. set the json into the code base for the rewards in the summon
+9. Update whitelist in frontend too
+10. Ensure the all books format is correct everything with the text.
+
 
 1. distributeSpillover should be updated to work in batches
 2. series types

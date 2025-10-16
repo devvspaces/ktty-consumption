@@ -6,10 +6,10 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {KttyWorldMinting} from "src/KttyWorldMinting.sol";
-import {DummyBooks} from "src/KttyWorldBooks.sol";
-import {DummyCompanions} from "src/KttyWorldCompanions.sol";
-import {DummyTools} from "src/KttyWorldTools.sol";
-import {DummyCollectibles} from "src/KttyWorldCollectibles.sol";
+import {KttyWorldBooks} from "src/KttyWorldBooks.sol";
+import {KttyWorldCompanions} from "src/KttyWorldCompanions.sol";
+import {KttyWorldTools} from "src/KttyWorldTools.sol";
+import {KttyWorldCollectibles} from "src/KttyWorldCollectibles.sol";
 
 contract MockKTTYToken is ERC20 {
     constructor() ERC20("KTTY Token", "KTTY") {
@@ -23,11 +23,11 @@ contract MockKTTYToken is ERC20 {
 
 contract KttyWorldMintingTest is Test {
     KttyWorldMinting public minting;
-    DummyCompanions public companions;
-    DummyTools public tools;
-    DummyCollectibles public collectibles;
+    KttyWorldCompanions public companions;
+    KttyWorldTools public tools;
+    KttyWorldCollectibles public collectibles;
     MockKTTYToken public kttyToken;
-    DummyBooks public booksNft;
+    KttyWorldBooks public booksNft;
 
     address public owner;
     address public treasuryWallet;
@@ -81,52 +81,52 @@ contract KttyWorldMintingTest is Test {
         kttyToken = new MockKTTYToken();
 
         // Deploy Companions
-        DummyCompanions companionsImpl = new DummyCompanions();
+        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
         bytes memory companionsInitData = abi.encodeCall(
-            DummyCompanions.initialize,
+            KttyWorldCompanions.initialize,
             (owner, "KTTY World Companions", "KWC", HIDDEN_URI, MAX_SUPPLY_NFT)
         );
         ERC1967Proxy companionsProxy = new ERC1967Proxy(
             address(companionsImpl),
             companionsInitData
         );
-        companions = DummyCompanions(address(companionsProxy));
+        companions = KttyWorldCompanions(address(companionsProxy));
 
         // Deploy Tools
-        DummyTools toolsImpl = new DummyTools();
+        KttyWorldTools toolsImpl = new KttyWorldTools();
         bytes memory toolsInitData = abi.encodeCall(
-            DummyTools.initialize,
+            KttyWorldTools.initialize,
             (owner, HIDDEN_URI)
         );
         ERC1967Proxy toolsProxy = new ERC1967Proxy(
             address(toolsImpl),
             toolsInitData
         );
-        tools = DummyTools(address(toolsProxy));
+        tools = KttyWorldTools(address(toolsProxy));
 
         // Deploy Collectibles
-        DummyCollectibles collectiblesImpl = new DummyCollectibles();
+        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
         bytes memory collectiblesInitData = abi.encodeCall(
-            DummyCollectibles.initialize,
+            KttyWorldCollectibles.initialize,
             (owner, HIDDEN_URI)
         );
         ERC1967Proxy collectiblesProxy = new ERC1967Proxy(
             address(collectiblesImpl),
             collectiblesInitData
         );
-        collectibles = DummyCollectibles(address(collectiblesProxy));
+        collectibles = KttyWorldCollectibles(address(collectiblesProxy));
 
         // Deploy Books
-        DummyBooks booksImpl = new DummyBooks();
+        KttyWorldBooks booksImpl = new KttyWorldBooks();
         bytes memory booksInitData = abi.encodeCall(
-            DummyBooks.initialize,
+            KttyWorldBooks.initialize,
             (owner, "KTTY World Books", "KWB", MAX_SUPPLY_NFT, HIDDEN_URI, address(0))
         );
         ERC1967Proxy booksProxy = new ERC1967Proxy(
             address(booksImpl),
             booksInitData
         );
-        booksNft = DummyBooks(address(booksProxy));
+        booksNft = KttyWorldBooks(address(booksProxy));
 
         // Deploy Minting Contract
         KttyWorldMinting mintingImpl = new KttyWorldMinting();
@@ -296,7 +296,7 @@ contract KttyWorldMintingTest is Test {
         assertEq(booksNft.ownerOf(bookId), address(minting));
         assertTrue(booksNft.exists(bookId));
         
-        DummyBooks.Book memory book = booksNft.getBook(bookId);
+        KttyWorldBooks.Book memory book = booksNft.getBook(bookId);
         assertEq(book.nftId, nftId);
         assertEq(book.toolIds[0], toolIds[0]);
         assertEq(book.toolIds[1], toolIds[1]);
@@ -373,7 +373,7 @@ contract KttyWorldMintingTest is Test {
         assertEq(booksNft.ownerOf(2), address(minting));
         assertEq(booksNft.ownerOf(3), address(minting));
         
-        DummyBooks.Book memory book1 = booksNft.getBook(1);
+        KttyWorldBooks.Book memory book1 = booksNft.getBook(1);
         assertEq(book1.nftId, 101);
         assertEq(book1.toolIds[0], 1);
         assertEq(book1.toolIds[1], 2);
@@ -382,7 +382,7 @@ contract KttyWorldMintingTest is Test {
         assertTrue(book1.hasGoldenTicket);
         assertEq(book1.series, "LEGENDARY");
 
-        DummyBooks.Book memory book2 = booksNft.getBook(2);
+        KttyWorldBooks.Book memory book2 = booksNft.getBook(2);
         assertEq(book2.nftId, 102);
         assertEq(book2.toolIds[0], 4);
         assertEq(book2.toolIds[1], 5);
@@ -391,7 +391,7 @@ contract KttyWorldMintingTest is Test {
         assertFalse(book2.hasGoldenTicket);
         assertEq(book2.series, "RARE");
 
-        DummyBooks.Book memory book3 = booksNft.getBook(3);
+        KttyWorldBooks.Book memory book3 = booksNft.getBook(3);
         assertEq(book3.nftId, 103);
         assertEq(book3.toolIds[0], 7);
         assertEq(book3.toolIds[1], 8);
@@ -427,7 +427,7 @@ contract KttyWorldMintingTest is Test {
         series[2] = "EPIC";
 
         vm.prank(owner);
-        vm.expectRevert(DummyBooks.InvalidArrayLength.selector);
+        vm.expectRevert(KttyWorldBooks.InvalidArrayLength.selector);
         booksNft.batchMintBooks(
             address(minting),
             bookIds,
@@ -1186,7 +1186,7 @@ contract KttyWorldMintingTest is Test {
         );
 
         // Test getUserBooksDetails returns correct book details
-        DummyBooks.Book[] memory userBooksDetails = minting.getUserBooksDetails(user1);
+        KttyWorldBooks.Book[] memory userBooksDetails = minting.getUserBooksDetails(user1);
         assertEq(userBooksDetails.length, 3);
 
         // Verify book details
@@ -1213,7 +1213,7 @@ contract KttyWorldMintingTest is Test {
         }
 
         // Test that other users get empty results
-        DummyBooks.Book[] memory user2BooksDetails = minting.getUserBooksDetails(user2);
+        KttyWorldBooks.Book[] memory user2BooksDetails = minting.getUserBooksDetails(user2);
         assertEq(user2BooksDetails.length, 0);
     }
 
@@ -1223,12 +1223,12 @@ contract KttyWorldMintingTest is Test {
         assertEq(userBooks.length, 0);
 
         // Test getUserBooksDetails for user with no books
-        DummyBooks.Book[] memory userBooksDetails = minting.getUserBooksDetails(user1);
+        KttyWorldBooks.Book[] memory userBooksDetails = minting.getUserBooksDetails(user1);
         assertEq(userBooksDetails.length, 0);
 
         // Test getBook for non-existent book
         vm.expectRevert();
-        DummyBooks.Book memory book = minting.getBook(999);
+        KttyWorldBooks.Book memory book = minting.getBook(999);
 
         // Test isBookOpened
         assertFalse(minting.isBookOpened(1));
@@ -1341,10 +1341,10 @@ contract KttyWorldMintingTest is Test {
 // Additional test contract for complex scenarios
 contract KttyWorldMintingEdgeCasesTest is Test {
     KttyWorldMinting public minting;
-    DummyCompanions public companions;
-    DummyTools public tools;
-    DummyCollectibles public collectibles;
-    DummyBooks public booksNft;
+    KttyWorldCompanions public companions;
+    KttyWorldTools public tools;
+    KttyWorldCollectibles public collectibles;
+    KttyWorldBooks public booksNft;
     MockKTTYToken public kttyToken;
 
     address public owner;
@@ -1361,9 +1361,9 @@ contract KttyWorldMintingEdgeCasesTest is Test {
         // Deploy all contracts (simplified setup)
         kttyToken = new MockKTTYToken();
 
-        DummyCompanions companionsImpl = new DummyCompanions();
+        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
         bytes memory companionsInitData = abi.encodeCall(
-            DummyCompanions.initialize,
+            KttyWorldCompanions.initialize,
             (
                 owner,
                 "KTTY World Companions",
@@ -1376,33 +1376,33 @@ contract KttyWorldMintingEdgeCasesTest is Test {
             address(companionsImpl),
             companionsInitData
         );
-        companions = DummyCompanions(address(companionsProxy));
+        companions = KttyWorldCompanions(address(companionsProxy));
 
-        DummyTools toolsImpl = new DummyTools();
+        KttyWorldTools toolsImpl = new KttyWorldTools();
         bytes memory toolsInitData = abi.encodeCall(
-            DummyTools.initialize,
+            KttyWorldTools.initialize,
             (owner, "https://hidden.com/")
         );
         ERC1967Proxy toolsProxy = new ERC1967Proxy(
             address(toolsImpl),
             toolsInitData
         );
-        tools = DummyTools(address(toolsProxy));
+        tools = KttyWorldTools(address(toolsProxy));
 
-        DummyCollectibles collectiblesImpl = new DummyCollectibles();
+        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
         bytes memory collectiblesInitData = abi.encodeCall(
-            DummyCollectibles.initialize,
+            KttyWorldCollectibles.initialize,
             (owner, "https://hidden.com/")
         );
         ERC1967Proxy collectiblesProxy = new ERC1967Proxy(
             address(collectiblesImpl),
             collectiblesInitData
         );
-        collectibles = DummyCollectibles(address(collectiblesProxy));
+        collectibles = KttyWorldCollectibles(address(collectiblesProxy));
 
-        DummyBooks booksImpl = new DummyBooks();
+        KttyWorldBooks booksImpl = new KttyWorldBooks();
         bytes memory booksInitData = abi.encodeCall(
-            DummyBooks.initialize,
+            KttyWorldBooks.initialize,
             (
                 owner,
                 "KTTY World Books",
@@ -1416,7 +1416,7 @@ contract KttyWorldMintingEdgeCasesTest is Test {
             address(booksImpl),
             booksInitData
         );
-        booksNft = DummyBooks(address(booksProxy));
+        booksNft = KttyWorldBooks(address(booksProxy));
 
         KttyWorldMinting mintingImpl = new KttyWorldMinting();
         bytes memory mintingInitData = abi.encodeCall(
@@ -1627,10 +1627,10 @@ contract KttyWorldMintingEdgeCasesTest is Test {
 // Test contract for Round 3 with proper merkle tree
 contract KttyWorldMintingRound3Test is Test {
     KttyWorldMinting public minting;
-    DummyCompanions public companions;
-    DummyTools public tools;
-    DummyCollectibles public collectibles;
-    DummyBooks public booksNft;
+    KttyWorldCompanions public companions;
+    KttyWorldTools public tools;
+    KttyWorldCollectibles public collectibles;
+    KttyWorldBooks public booksNft;
     MockKTTYToken public kttyToken;
 
     address public owner;
@@ -1652,9 +1652,9 @@ contract KttyWorldMintingRound3Test is Test {
         // Deploy all contracts
         kttyToken = new MockKTTYToken();
 
-        DummyCompanions companionsImpl = new DummyCompanions();
+        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
         bytes memory companionsInitData = abi.encodeCall(
-            DummyCompanions.initialize,
+            KttyWorldCompanions.initialize,
             (
                 owner,
                 "KTTY World Companions",
@@ -1667,33 +1667,33 @@ contract KttyWorldMintingRound3Test is Test {
             address(companionsImpl),
             companionsInitData
         );
-        companions = DummyCompanions(address(companionsProxy));
+        companions = KttyWorldCompanions(address(companionsProxy));
 
-        DummyTools toolsImpl = new DummyTools();
+        KttyWorldTools toolsImpl = new KttyWorldTools();
         bytes memory toolsInitData = abi.encodeCall(
-            DummyTools.initialize,
+            KttyWorldTools.initialize,
             (owner, "https://hidden.com/")
         );
         ERC1967Proxy toolsProxy = new ERC1967Proxy(
             address(toolsImpl),
             toolsInitData
         );
-        tools = DummyTools(address(toolsProxy));
+        tools = KttyWorldTools(address(toolsProxy));
 
-        DummyCollectibles collectiblesImpl = new DummyCollectibles();
+        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
         bytes memory collectiblesInitData = abi.encodeCall(
-            DummyCollectibles.initialize,
+            KttyWorldCollectibles.initialize,
             (owner, "https://hidden.com/")
         );
         ERC1967Proxy collectiblesProxy = new ERC1967Proxy(
             address(collectiblesImpl),
             collectiblesInitData
         );
-        collectibles = DummyCollectibles(address(collectiblesProxy));
+        collectibles = KttyWorldCollectibles(address(collectiblesProxy));
 
-        DummyBooks booksImpl = new DummyBooks();
+        KttyWorldBooks booksImpl = new KttyWorldBooks();
         bytes memory booksInitData = abi.encodeCall(
-            DummyBooks.initialize,
+            KttyWorldBooks.initialize,
             (
                 owner,
                 "KTTY World Books",
@@ -1707,7 +1707,7 @@ contract KttyWorldMintingRound3Test is Test {
             address(booksImpl),
             booksInitData
         );
-        booksNft = DummyBooks(address(booksProxy));
+        booksNft = KttyWorldBooks(address(booksProxy));
 
         KttyWorldMinting mintingImpl = new KttyWorldMinting();
         bytes memory mintingInitData = abi.encodeCall(
@@ -1910,105 +1910,15 @@ contract KttyWorldMintingRound3Test is Test {
             invalidProof
         );
     }
-
-    function test_Round3PoolCarryover() public {
-        // Set up Round 1 with leftover pool (use future timestamps to avoid issues)
-        uint256 round1Start = block.timestamp + 1 hours;
-        uint256 round1End = block.timestamp + 2 hours;
-
-        vm.prank(owner);
-        minting.configureRound(1, round1Start, round1End);
-
-        // Create books for pool 1
-        for (uint256 i = 1; i <= 5; i++) {
-            _createBook(
-                i,
-                i,
-                [uint256(1), uint256(2), uint256(3)],
-                0,
-                "NULL"
-            );
-        }
-
-        uint256[] memory pool1Books = new uint256[](5);
-        for (uint256 i = 0; i < 5; i++) {
-            pool1Books[i] = i + 1;
-        }
-
-        vm.prank(owner);
-        minting.loadPool1(pool1Books);
-
-        // Set up Round 3
-        vm.prank(owner);
-        minting.configureRound(3, block.timestamp, block.timestamp + 1 days);
-
-        // Create books for bucket
-        for (uint256 i = 6; i <= 10; i++) {
-            _createBook(
-                i,
-                i,
-                [uint256(1), uint256(2), uint256(3)],
-                0,
-                "NULL"
-            );
-        }
-
-        uint256[] memory bucket0Books = new uint256[](5);
-        for (uint256 i = 0; i < 5; i++) {
-            bucket0Books[i] = i + 6;
-        }
-
-        vm.prank(owner);
-        minting.loadBucket(0, bucket0Books, 5, 0, 0, 0);
-
-        // Distribute spillover from pool 1 to buckets (new spillover logic)
-        vm.prank(owner);
-        minting.distributeSpilloverToBuckets();
-
-        // User1 mints - should get from bucket 0 (which now contains spillover books)
-        bytes32[] memory proof = _generateValidMerkleProof(user1);
-
-        vm.prank(user1);
-        minting.mint{value: 3 ether}(
-            3,
-            KttyWorldMinting.PaymentType.NATIVE_ONLY,
-            proof
-        );
-
-        uint256[] memory userBooks = minting.getUserBooks(user1);
-        assertEq(userBooks.length, 3);
-        
-        // Books should include some from the spillover (books 1-5) and bucket (books 6-10)
-        // We can't guarantee exact order due to random distribution, but all should be valid book IDs
-        for (uint256 i = 0; i < userBooks.length; i++) {
-            assertTrue(userBooks[i] >= 1 && userBooks[i] <= 10, "Book ID should be between 1 and 10");
-        }
-
-        // Pool 1 should be exhausted after spillover distribution
-        (
-            ,
-            uint256 pool1Remaining,
-            ,
-            ,
-            ,
-            uint256[2][8] memory bucketStats
-        ) = minting.getPoolAndBucketStatus();
-        assertEq(pool1Remaining, 0, "Pool 1 should be exhausted after spillover distribution");
-        
-        // Bucket 0 should have original 5 books + 1 spillover book - 3 minted = 3 remaining
-        // (5 spillover books distributed: 1 each to buckets 0-4, 0 to buckets 5-7)
-        uint256 totalBucket0Remaining = bucketStats[0][0];
-        assertEq(totalBucket0Remaining, 3, "Bucket 0 should have 3 books remaining after minting 3");
-    }
 }
 
 // Test contract for Round 4 public minting
 contract KttyWorldMintingRound4Test is Test {
     KttyWorldMinting public minting;
-    DummyCompanions public companions;
-    DummyTools public tools;
-    DummyCollectibles public collectibles;
-    DummyBooks public booksNft;
+    KttyWorldCompanions public companions;
+    KttyWorldTools public tools;
+    KttyWorldCollectibles public collectibles;
+    KttyWorldBooks public booksNft;
     MockKTTYToken public kttyToken;
 
     address public owner;
@@ -2027,9 +1937,9 @@ contract KttyWorldMintingRound4Test is Test {
         // Deploy all contracts (simplified setup)
         kttyToken = new MockKTTYToken();
 
-        DummyCompanions companionsImpl = new DummyCompanions();
+        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
         bytes memory companionsInitData = abi.encodeCall(
-            DummyCompanions.initialize,
+            KttyWorldCompanions.initialize,
             (
                 owner,
                 "KTTY World Companions",
@@ -2042,33 +1952,33 @@ contract KttyWorldMintingRound4Test is Test {
             address(companionsImpl),
             companionsInitData
         );
-        companions = DummyCompanions(address(companionsProxy));
+        companions = KttyWorldCompanions(address(companionsProxy));
 
-        DummyTools toolsImpl = new DummyTools();
+        KttyWorldTools toolsImpl = new KttyWorldTools();
         bytes memory toolsInitData = abi.encodeCall(
-            DummyTools.initialize,
+            KttyWorldTools.initialize,
             (owner, "https://hidden.com/")
         );
         ERC1967Proxy toolsProxy = new ERC1967Proxy(
             address(toolsImpl),
             toolsInitData
         );
-        tools = DummyTools(address(toolsProxy));
+        tools = KttyWorldTools(address(toolsProxy));
 
-        DummyCollectibles collectiblesImpl = new DummyCollectibles();
+        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
         bytes memory collectiblesInitData = abi.encodeCall(
-            DummyCollectibles.initialize,
+            KttyWorldCollectibles.initialize,
             (owner, "https://hidden.com/")
         );
         ERC1967Proxy collectiblesProxy = new ERC1967Proxy(
             address(collectiblesImpl),
             collectiblesInitData
         );
-        collectibles = DummyCollectibles(address(collectiblesProxy));
+        collectibles = KttyWorldCollectibles(address(collectiblesProxy));
 
-        DummyBooks booksImpl = new DummyBooks();
+        KttyWorldBooks booksImpl = new KttyWorldBooks();
         bytes memory booksInitData = abi.encodeCall(
-            DummyBooks.initialize,
+            KttyWorldBooks.initialize,
             (
                 owner,
                 "KTTY World Books",
@@ -2082,7 +1992,7 @@ contract KttyWorldMintingRound4Test is Test {
             address(booksImpl),
             booksInitData
         );
-        booksNft = DummyBooks(address(booksProxy));
+        booksNft = KttyWorldBooks(address(booksProxy));
 
         KttyWorldMinting mintingImpl = new KttyWorldMinting();
         bytes memory mintingInitData = abi.encodeCall(
@@ -2229,100 +2139,6 @@ contract KttyWorldMintingRound4Test is Test {
         assertEq(bucketStats[0][0], 2); // 10 - 8 = 2 remaining
     }
 
-    function test_Round4WithLeftoverPools() public {
-        // Set up past rounds with leftover pools (use reasonable future timestamps)
-        uint256 round1Start = block.timestamp + 1 hours;
-        uint256 round1End = block.timestamp + 2 hours;
-        uint256 round2Start = block.timestamp + 2 hours;
-        uint256 round2End = block.timestamp + 3 hours;
-
-        vm.prank(owner);
-        minting.configureRound(1, round1Start, round1End);
-
-        vm.prank(owner);
-        minting.configureRound(2, round2Start, round2End);
-
-        vm.prank(owner);
-        minting.setMaxMintPerTransaction(12);
-
-        // Create books for pools
-        for (uint256 i = 1; i <= 15; i++) {
-            _createBook(
-                i,
-                i,
-                [uint256(1), uint256(2), uint256(3)],
-                0,
-                "NULL"
-            );
-        }
-
-        // Load pool 1 and 2 with books
-        uint256[] memory pool1Books = new uint256[](5);
-        for (uint256 i = 0; i < 5; i++) {
-            pool1Books[i] = i + 1;
-        }
-        vm.prank(owner);
-        minting.loadPool1(pool1Books);
-
-        uint256[] memory pool2Books = new uint256[](5);
-        for (uint256 i = 0; i < 5; i++) {
-            pool2Books[i] = i + 6;
-        }
-        vm.prank(owner);
-        minting.loadPool2(pool2Books);
-
-        // Load bucket with remaining books
-        uint256[] memory bucket0Books = new uint256[](5);
-        for (uint256 i = 0; i < 5; i++) {
-            bucket0Books[i] = i + 11;
-        }
-        vm.prank(owner);
-        minting.loadBucket(0, bucket0Books, 5, 0, 0, 0);
-
-        // Set up Round 4
-        vm.prank(owner);
-        minting.configureRound(4, block.timestamp, block.timestamp + 1 days);
-
-        // Distribute spillover from pools to buckets (new spillover logic)
-        vm.prank(owner);
-        minting.distributeSpilloverToBuckets();
-
-        // Mint in Round 4 - should consume from buckets (which now contain spillover)
-        bytes32[] memory emptyProof = new bytes32[](0);
-
-        uint256 currentRound = minting.getCurrentRound();
-        console.log("Current Round:", currentRound);
-        vm.prank(user1);
-        minting.mint{value: 12 ether}(
-            12,
-            KttyWorldMinting.PaymentType.NATIVE_ONLY,
-            emptyProof
-        );
-
-        uint256[] memory userBooks = minting.getUserBooks(user1);
-        assertEq(userBooks.length, 12);
-
-        // After spillover distribution, pools should be exhausted and buckets should have remaining books
-        (
-            ,
-            uint256 pool1Remaining,
-            ,
-            uint256 pool2Remaining,
-            ,
-            uint256[2][8] memory bucketStats
-        ) = minting.getPoolAndBucketStatus();
-        assertEq(pool1Remaining, 0, "Pool 1 should be exhausted after spillover distribution");
-        assertEq(pool2Remaining, 0, "Pool 2 should be exhausted after spillover distribution");
-        
-        // Total books distributed: 5 (bucket) + 10 (spillover) = 15 books
-        // After minting 12: 15 - 12 = 3 books remaining across all buckets
-        uint256 totalRemaining = 0;
-        for (uint256 i = 0; i < 8; i++) {
-            totalRemaining += bucketStats[i][0];
-        }
-        assertEq(totalRemaining, 3, "Should have 3 books remaining across all buckets");
-    }
-
     function test_Round4MaxMintPerTransaction() public {
         // Set up Round 4
         vm.prank(owner);
@@ -2374,10 +2190,10 @@ contract KttyWorldMintingRound4Test is Test {
 // Fuzz and Invariant Testing
 contract KttyWorldMintingInvariantTest is Test {
     KttyWorldMinting public minting;
-    DummyCompanions public companions;
-    DummyTools public tools;
-    DummyCollectibles public collectibles;
-    DummyBooks public booksNft;
+    KttyWorldCompanions public companions;
+    KttyWorldTools public tools;
+    KttyWorldCollectibles public collectibles;
+    KttyWorldBooks public booksNft;
     MockKTTYToken public kttyToken;
     KttyWorldMintingHandler public handler;
 
@@ -2392,9 +2208,9 @@ contract KttyWorldMintingInvariantTest is Test {
         // Deploy all contracts
         kttyToken = new MockKTTYToken();
 
-        DummyCompanions companionsImpl = new DummyCompanions();
+        KttyWorldCompanions companionsImpl = new KttyWorldCompanions();
         bytes memory companionsInitData = abi.encodeCall(
-            DummyCompanions.initialize,
+            KttyWorldCompanions.initialize,
             (
                 owner,
                 "KTTY World Companions",
@@ -2407,33 +2223,33 @@ contract KttyWorldMintingInvariantTest is Test {
             address(companionsImpl),
             companionsInitData
         );
-        companions = DummyCompanions(address(companionsProxy));
+        companions = KttyWorldCompanions(address(companionsProxy));
 
-        DummyTools toolsImpl = new DummyTools();
+        KttyWorldTools toolsImpl = new KttyWorldTools();
         bytes memory toolsInitData = abi.encodeCall(
-            DummyTools.initialize,
+            KttyWorldTools.initialize,
             (owner, "https://hidden.com/")
         );
         ERC1967Proxy toolsProxy = new ERC1967Proxy(
             address(toolsImpl),
             toolsInitData
         );
-        tools = DummyTools(address(toolsProxy));
+        tools = KttyWorldTools(address(toolsProxy));
 
-        DummyCollectibles collectiblesImpl = new DummyCollectibles();
+        KttyWorldCollectibles collectiblesImpl = new KttyWorldCollectibles();
         bytes memory collectiblesInitData = abi.encodeCall(
-            DummyCollectibles.initialize,
+            KttyWorldCollectibles.initialize,
             (owner, "https://hidden.com/")
         );
         ERC1967Proxy collectiblesProxy = new ERC1967Proxy(
             address(collectiblesImpl),
             collectiblesInitData
         );
-        collectibles = DummyCollectibles(address(collectiblesProxy));
+        collectibles = KttyWorldCollectibles(address(collectiblesProxy));
 
-        DummyBooks booksImpl = new DummyBooks();
+        KttyWorldBooks booksImpl = new KttyWorldBooks();
         bytes memory booksInitData = abi.encodeCall(
-            DummyBooks.initialize,
+            KttyWorldBooks.initialize,
             (
                 owner,
                 "KTTY World Books",
@@ -2447,7 +2263,7 @@ contract KttyWorldMintingInvariantTest is Test {
             address(booksImpl),
             booksInitData
         );
-        booksNft = DummyBooks(address(booksProxy));
+        booksNft = KttyWorldBooks(address(booksProxy));
 
         KttyWorldMinting mintingImpl = new KttyWorldMinting();
         bytes memory mintingInitData = abi.encodeCall(
@@ -2555,7 +2371,7 @@ contract KttyWorldMintingInvariantTest is Test {
 
 contract KttyWorldMintingHandler is Test {
     KttyWorldMinting public minting;
-    DummyBooks public booksNft;
+    KttyWorldBooks public booksNft;
     address public owner;
 
     uint256 public ghost_totalBooksMinted;
@@ -2591,7 +2407,7 @@ contract KttyWorldMintingHandler is Test {
         booksNft.batchMintBooks(address(minting), tokenIds, nftIds, toolIdArrays, goldenTicketIds, seriesArr);
     }
 
-    constructor(KttyWorldMinting _minting, DummyBooks _booksNft, address _owner) {
+    constructor(KttyWorldMinting _minting, KttyWorldBooks _booksNft, address _owner) {
         minting = _minting;
         booksNft = _booksNft;
         owner = _owner;

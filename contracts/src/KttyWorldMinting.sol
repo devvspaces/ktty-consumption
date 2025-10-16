@@ -10,10 +10,10 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {DummyCompanions} from "./KttyWorldCompanions.sol";
-import {DummyTools} from "./KttyWorldTools.sol";
-import {DummyCollectibles} from "./KttyWorldCollectibles.sol";
-import {DummyBooks} from "./KttyWorldBooks.sol";
+import {KttyWorldCompanions} from "./KttyWorldCompanions.sol";
+import {KttyWorldTools} from "./KttyWorldTools.sol";
+import {KttyWorldCollectibles} from "./KttyWorldCollectibles.sol";
+import {KttyWorldBooks} from "./KttyWorldBooks.sol";
 
 /// @title KttyWorldMinting
 /// @notice Main minting contract for KTTY World summoning books with complex round and bucket system
@@ -29,10 +29,10 @@ contract KttyWorldMinting is
     /// @custom:storage-location erc7201:ktty.storage.KttyWorldMinting
     struct KttyWorldMintingStorage {
         // Contract references
-        DummyCompanions companions;
-        DummyTools tools;
-        DummyCollectibles collectibles;
-        DummyBooks books;
+        KttyWorldCompanions companions;
+        KttyWorldTools tools;
+        KttyWorldCollectibles collectibles;
+        KttyWorldBooks books;
         IERC20 kttyToken;
         // Global state
         uint256 currentRound;
@@ -166,10 +166,10 @@ contract KttyWorldMinting is
 
     /// @notice Initializes the contract
     /// @param _owner The owner of the contract
-    /// @param _companions DummyCompanions contract address
-    /// @param _tools DummyTools contract address
-    /// @param _collectibles DummyCollectibles contract address
-    /// @param _books DummyBooks contract address
+    /// @param _companions KttyWorldCompanions contract address
+    /// @param _tools KttyWorldTools contract address
+    /// @param _collectibles KttyWorldCollectibles contract address
+    /// @param _books KttyWorldBooks contract address
     /// @param _kttyToken KTTY token contract address
     /// @param _treasuryWallet Wallet to receive payments
     function initialize(
@@ -187,10 +187,10 @@ contract KttyWorldMinting is
         __ReentrancyGuard_init();
 
         KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
-        $.companions = DummyCompanions(_companions);
-        $.tools = DummyTools(_tools);
-        $.collectibles = DummyCollectibles(_collectibles);
-        $.books = DummyBooks(_books);
+        $.companions = KttyWorldCompanions(_companions);
+        $.tools = KttyWorldTools(_tools);
+        $.collectibles = KttyWorldCollectibles(_collectibles);
+        $.books = KttyWorldBooks(_books);
         $.kttyToken = IERC20(_kttyToken);
         $.treasuryWallet = _treasuryWallet;
         $.maxMintPerTransaction = _maxMintPerTransaction;
@@ -295,7 +295,7 @@ contract KttyWorldMinting is
     /// @return Array of Book structs containing full book details
     function getUserBooksDetails(
         address user
-    ) external view returns (DummyBooks.Book[] memory) {
+    ) external view returns (KttyWorldBooks.Book[] memory) {
         KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
         return $.books.getUserBooksDetails(user);
     }
@@ -305,7 +305,7 @@ contract KttyWorldMinting is
     /// @return Book struct containing book details
     function getBook(
         uint256 bookId
-    ) external view returns (DummyBooks.Book memory) {
+    ) external view returns (KttyWorldBooks.Book memory) {
         KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
         return $.books.getBook(bookId);
     }
@@ -570,6 +570,12 @@ contract KttyWorldMinting is
         emit TreasuryWalletUpdated(newWallet);
     }
 
+    /// @notice Get treasury wallet address
+    function getTreasuryWallet() external view returns (address) {
+        KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
+        return $.treasuryWallet;
+    }
+
     /// @notice Set maximum mint per transaction
     /// @param maxMint New maximum mint per transaction
     function setMaxMintPerTransaction(uint256 maxMint) external onlyOwner {
@@ -648,107 +654,295 @@ contract KttyWorldMinting is
         }
     }
 
-    /// @notice Distribute remaining Pool 1 and Pool 2 books equally across Round 3 buckets
-    /// @dev This function should be called after Rounds 1 and 2 end but before Round 3 starts
-    function distributeSpilloverToBuckets() external onlyOwner {
+    /// @notice Airdrop books to users
+    /// @param bookIds Array of book token IDs to send
+    /// @param recipient Recipient address
+    function airdropBooks(
+        uint256[] calldata bookIds,
+        address recipient
+    ) external onlyOwner {
         KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
 
-        // Collect all remaining books from pools 1 and 2
-        uint256[] memory spilloverBooks = new uint256[](0);
-        uint256 totalSpillover = 0;
-
-        // Collect remaining books from pool 1
-        if (
-            !$.pool1.exhausted && $.pool1.currentIndex < $.pool1.bookIds.length
-        ) {
-            uint256 pool1Remaining = $.pool1.bookIds.length -
-                $.pool1.currentIndex;
-            uint256[] memory temp = new uint256[](
-                totalSpillover + pool1Remaining
-            );
-
-            // Copy existing spillover books
-            for (uint256 i = 0; i < totalSpillover; i++) {
-                temp[i] = spilloverBooks[i];
-            }
-
-            // Add pool 1 remaining books
-            for (uint256 i = 0; i < pool1Remaining; i++) {
-                temp[totalSpillover + i] = $.pool1.bookIds[
-                    $.pool1.currentIndex + i
-                ];
-            }
-
-            spilloverBooks = temp;
-            totalSpillover += pool1Remaining;
-
-            // Mark pool 1 as exhausted
-            $.pool1.exhausted = true;
+        for (uint256 i = 0; i < bookIds.length; i++) {
+            $.books.transferFrom(address(this), recipient, bookIds[i]);
         }
-
-        // Collect remaining books from pool 2
-        if (
-            !$.pool2.exhausted && $.pool2.currentIndex < $.pool2.bookIds.length
-        ) {
-            uint256 pool2Remaining = $.pool2.bookIds.length -
-                $.pool2.currentIndex;
-            uint256[] memory temp = new uint256[](
-                totalSpillover + pool2Remaining
-            );
-
-            // Copy existing spillover books
-            for (uint256 i = 0; i < totalSpillover; i++) {
-                temp[i] = spilloverBooks[i];
-            }
-
-            // Add pool 2 remaining books
-            for (uint256 i = 0; i < pool2Remaining; i++) {
-                temp[totalSpillover + i] = $.pool2.bookIds[
-                    $.pool2.currentIndex + i
-                ];
-            }
-
-            spilloverBooks = temp;
-            totalSpillover += pool2Remaining;
-
-            // Mark pool 2 as exhausted
-            $.pool2.exhausted = true;
-        }
-
-        // If no spillover books, return early
-        if (totalSpillover == 0) {
-            return;
-        }
-
-        // Calculate distribution across 8 buckets
-        uint256 booksPerBucket = totalSpillover / 8;
-        uint256 remainder = totalSpillover % 8;
-
-        uint256 spilloverIndex = 0;
-
-        // Distribute books to buckets
-        for (uint256 bucketIdx = 0; bucketIdx < 8; bucketIdx++) {
-            uint256 booksForThisBucket = booksPerBucket;
-            if (bucketIdx < remainder) {
-                booksForThisBucket += 1;
-            }
-
-            if (booksForThisBucket > 0) {
-                _insertSpilloverIntoBucket(
-                    bucketIdx,
-                    spilloverBooks,
-                    spilloverIndex,
-                    booksForThisBucket
-                );
-                spilloverIndex += booksForThisBucket;
-            }
-        }
-
-        emit SpilloverDistributed(totalSpillover);
     }
 
-    /// @dev Insert spillover books randomly into a specific bucket
-    function _insertSpilloverIntoBucket(
+    // /// @notice Distribute remaining Pool 1 and Pool 2 books equally across Round 3 buckets
+    // /// @dev This function should be called after Rounds 1 and 2 end but before Round 3 starts
+    // function distributeSpilloverToBuckets() external onlyOwner {
+    //     KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
+
+    //     // Collect all remaining books from pools 1 and 2
+    //     uint256[] memory spilloverBooks = new uint256[](0);
+    //     uint256 totalSpillover = 0;
+
+    //     // Collect remaining books from pool 1
+    //     if (
+    //         !$.pool1.exhausted && $.pool1.currentIndex < $.pool1.bookIds.length
+    //     ) {
+    //         uint256 pool1Remaining = $.pool1.bookIds.length -
+    //             $.pool1.currentIndex;
+    //         uint256[] memory temp = new uint256[](
+    //             totalSpillover + pool1Remaining
+    //         );
+
+    //         // Copy existing spillover books
+    //         for (uint256 i = 0; i < totalSpillover; i++) {
+    //             temp[i] = spilloverBooks[i];
+    //         }
+
+    //         // Add pool 1 remaining books
+    //         for (uint256 i = 0; i < pool1Remaining; i++) {
+    //             temp[totalSpillover + i] = $.pool1.bookIds[
+    //                 $.pool1.currentIndex + i
+    //             ];
+    //         }
+
+    //         spilloverBooks = temp;
+    //         totalSpillover += pool1Remaining;
+
+    //         // Mark pool 1 as exhausted
+    //         $.pool1.exhausted = true;
+    //     }
+
+    //     // Collect remaining books from pool 2
+    //     if (
+    //         !$.pool2.exhausted && $.pool2.currentIndex < $.pool2.bookIds.length
+    //     ) {
+    //         uint256 pool2Remaining = $.pool2.bookIds.length -
+    //             $.pool2.currentIndex;
+    //         uint256[] memory temp = new uint256[](
+    //             totalSpillover + pool2Remaining
+    //         );
+
+    //         // Copy existing spillover books
+    //         for (uint256 i = 0; i < totalSpillover; i++) {
+    //             temp[i] = spilloverBooks[i];
+    //         }
+
+    //         // Add pool 2 remaining books
+    //         for (uint256 i = 0; i < pool2Remaining; i++) {
+    //             temp[totalSpillover + i] = $.pool2.bookIds[
+    //                 $.pool2.currentIndex + i
+    //             ];
+    //         }
+
+    //         spilloverBooks = temp;
+    //         totalSpillover += pool2Remaining;
+
+    //         // Mark pool 2 as exhausted
+    //         $.pool2.exhausted = true;
+    //     }
+
+    //     // If no spillover books, return early
+    //     if (totalSpillover == 0) {
+    //         return;
+    //     }
+
+    //     // Calculate distribution across 8 buckets
+    //     uint256 booksPerBucket = totalSpillover / 8;
+    //     uint256 remainder = totalSpillover % 8;
+
+    //     uint256 spilloverIndex = 0;
+
+    //     // Distribute books to buckets
+    //     for (uint256 bucketIdx = 0; bucketIdx < 8; bucketIdx++) {
+    //         uint256 booksForThisBucket = booksPerBucket;
+    //         if (bucketIdx < remainder) {
+    //             booksForThisBucket += 1;
+    //         }
+
+    //         if (booksForThisBucket > 0) {
+    //             _insertSpilloverIntoBucket(
+    //                 bucketIdx,
+    //                 spilloverBooks,
+    //                 spilloverIndex,
+    //                 booksForThisBucket
+    //             );
+    //             spilloverIndex += booksForThisBucket;
+    //         }
+    //     }
+
+    //     emit SpilloverDistributed(totalSpillover);
+    // }
+
+    // /// @dev Insert spillover books randomly into a specific bucket
+    // function _insertSpilloverIntoBucket(
+    //     uint256 bucketIndex,
+    //     uint256[] memory spilloverBooks,
+    //     uint256 startIndex,
+    //     uint256 count
+    // ) internal {
+    //     KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
+    //     Bucket storage bucket = $.buckets[bucketIndex];
+
+    //     // Create new array with increased size
+    //     uint256 newSize = bucket.bookIds.length + count;
+    //     uint256[] memory newBookIds = new uint256[](newSize);
+
+    //     // Copy original books
+    //     for (uint256 i = 0; i < bucket.bookIds.length; i++) {
+    //         newBookIds[i] = bucket.bookIds[i];
+    //     }
+
+    //     // Insert spillover books at random positions
+    //     for (uint256 i = 0; i < count; i++) {
+    //         uint256 spilloverBookId = spilloverBooks[startIndex + i];
+
+    //         // Generate pseudo-random position using block data and iteration
+    //         uint256 randomPosition = _generateRandomPosition(
+    //             bucketIndex,
+    //             i,
+    //             newSize - count + i + 1
+    //         );
+
+    //         // Shift books to make room for insertion
+    //         for (uint256 j = newSize - count + i; j > randomPosition; j--) {
+    //             newBookIds[j] = newBookIds[j - 1];
+    //         }
+
+    //         // Insert spillover book at random position
+    //         newBookIds[randomPosition] = spilloverBookId;
+    //     }
+
+    //     // Update bucket with new book array
+    //     bucket.bookIds = newBookIds;
+    // }
+
+/// @notice Distribute remaining Pool 1 books to buckets in batches
+/// @param booksPerBatch Number of books to distribute per transaction (recommend 50-100)
+/// @dev Can be called multiple times until all books are distributed
+function distributePool1SpilloverToBuckets(uint256 booksPerBatch) external onlyOwner {
+    KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
+
+    // Check if pool 1 has remaining books
+    if ($.pool1.exhausted || $.pool1.currentIndex >= $.pool1.bookIds.length) {
+        return;
+    }
+
+    uint256 pool1Remaining = $.pool1.bookIds.length - $.pool1.currentIndex;
+    uint256 booksToDistribute = pool1Remaining < booksPerBatch ? pool1Remaining : booksPerBatch;
+    
+    // Calculate distribution across 8 buckets
+    uint256 booksPerBucket = booksToDistribute / 8;
+    uint256 remainder = booksToDistribute % 8;
+
+    uint256 currentBookIndex = $.pool1.currentIndex;
+    uint256 booksDistributed = 0;
+
+    // Distribute books directly to buckets
+    for (uint256 bucketIdx = 0; bucketIdx < 8 && booksDistributed < booksToDistribute; bucketIdx++) {
+        uint256 booksForThisBucket = booksPerBucket;
+        if (bucketIdx < remainder) {
+            booksForThisBucket += 1;
+        }
+
+        if (booksForThisBucket > 0) {
+            Bucket storage bucket = $.buckets[bucketIdx];
+            uint256 originalSize = bucket.bookIds.length;
+            uint256 newSize = originalSize + booksForThisBucket;
+            
+            // Create new array with increased size
+            uint256[] memory newBookIds = new uint256[](newSize);
+            
+            // Copy original books
+            for (uint256 i = 0; i < originalSize; i++) {
+                newBookIds[i] = bucket.bookIds[i];
+            }
+            
+            // Append pool 1 spillover books to the end
+            for (uint256 i = 0; i < booksForThisBucket; i++) {
+                newBookIds[originalSize + i] = $.pool1.bookIds[currentBookIndex];
+                currentBookIndex++;
+                booksDistributed++;
+            }
+            
+            // Update bucket with new book array
+            bucket.bookIds = newBookIds;
+        }
+    }
+
+    // Update pool 1 index
+    $.pool1.currentIndex = currentBookIndex;
+
+    // Mark pool 1 as exhausted if all books distributed
+    if ($.pool1.currentIndex >= $.pool1.bookIds.length) {
+        $.pool1.exhausted = true;
+    }
+    
+    emit SpilloverDistributed(booksDistributed);
+}
+
+    /// @notice Get spillover distribution progress for Pool 1
+/// @return remaining Number of books still to distribute
+/// @return total Total books in pool
+/// @return percentage Percentage completed (0-100)
+function getPool1SpilloverProgress() external view returns (uint256 remaining, uint256 total, uint256 percentage) {
+    KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
+    
+    total = $.pool1.bookIds.length;
+    remaining = $.pool1.exhausted ? 0 : (total - $.pool1.currentIndex);
+    percentage = total > 0 ? ((total - remaining) * 100) / total : 100;
+}
+
+/// @notice Distribute remaining Pool 2 books equally across Round 3 buckets
+/// @dev Should be called after Round 2 ends
+function distributePool2SpilloverToBuckets() external onlyOwner {
+    KttyWorldMintingStorage storage $ = _getKttyWorldMintingStorage();
+
+    // Check if pool 2 has remaining books
+    if ($.pool2.exhausted || $.pool2.currentIndex >= $.pool2.bookIds.length) {
+        return;
+    }
+
+    uint256 pool2Remaining = $.pool2.bookIds.length - $.pool2.currentIndex;
+    
+    // Calculate distribution across 8 buckets
+    uint256 booksPerBucket = pool2Remaining / 8;
+    uint256 remainder = pool2Remaining % 8;
+
+    uint256 currentBookIndex = $.pool2.currentIndex;
+
+    // Distribute books directly to buckets
+    for (uint256 bucketIdx = 0; bucketIdx < 8; bucketIdx++) {
+        uint256 booksForThisBucket = booksPerBucket;
+        if (bucketIdx < remainder) {
+            booksForThisBucket += 1;
+        }
+
+        if (booksForThisBucket > 0) {
+            Bucket storage bucket = $.buckets[bucketIdx];
+            uint256 originalSize = bucket.bookIds.length;
+            uint256 newSize = originalSize + booksForThisBucket;
+            
+            // Create new array with increased size
+            uint256[] memory newBookIds = new uint256[](newSize);
+            
+            // Copy original books
+            for (uint256 i = 0; i < originalSize; i++) {
+                newBookIds[i] = bucket.bookIds[i];
+            }
+            
+            // Append pool 2 spillover books to the end
+            for (uint256 i = 0; i < booksForThisBucket; i++) {
+                newBookIds[originalSize + i] = $.pool2.bookIds[currentBookIndex];
+                currentBookIndex++;
+            }
+            
+            // Update bucket with new book array
+            bucket.bookIds = newBookIds;
+        }
+    }
+
+    // Mark pool 2 as exhausted
+    $.pool2.exhausted = true;
+    
+    emit SpilloverDistributed(pool2Remaining);
+}
+
+    /// @dev Append spillover books to the end of a specific bucket
+    function _appendSpilloverToBucket(
         uint256 bucketIndex,
         uint256[] memory spilloverBooks,
         uint256 startIndex,
@@ -758,32 +952,18 @@ contract KttyWorldMinting is
         Bucket storage bucket = $.buckets[bucketIndex];
 
         // Create new array with increased size
-        uint256 newSize = bucket.bookIds.length + count;
+        uint256 originalSize = bucket.bookIds.length;
+        uint256 newSize = originalSize + count;
         uint256[] memory newBookIds = new uint256[](newSize);
 
         // Copy original books
-        for (uint256 i = 0; i < bucket.bookIds.length; i++) {
+        for (uint256 i = 0; i < originalSize; i++) {
             newBookIds[i] = bucket.bookIds[i];
         }
 
-        // Insert spillover books at random positions
+        // Append spillover books to the end
         for (uint256 i = 0; i < count; i++) {
-            uint256 spilloverBookId = spilloverBooks[startIndex + i];
-
-            // Generate pseudo-random position using block data and iteration
-            uint256 randomPosition = _generateRandomPosition(
-                bucketIndex,
-                i,
-                newSize - count + i + 1
-            );
-
-            // Shift books to make room for insertion
-            for (uint256 j = newSize - count + i; j > randomPosition; j--) {
-                newBookIds[j] = newBookIds[j - 1];
-            }
-
-            // Insert spillover book at random position
-            newBookIds[randomPosition] = spilloverBookId;
+            newBookIds[originalSize + i] = spilloverBooks[startIndex + i];
         }
 
         // Update bucket with new book array
@@ -848,7 +1028,7 @@ contract KttyWorldMinting is
             $.openedBooks[bookId] = true;
 
             // Get book details from Books contract
-            DummyBooks.Book memory book = $.books.getBook(bookId);
+            KttyWorldBooks.Book memory book = $.books.getBook(bookId);
 
             // Transfer NFT
             try
@@ -878,7 +1058,7 @@ contract KttyWorldMinting is
                 $.collectibles.safeTransferFrom(
                     address(this),
                     msg.sender,
-                    book.goldenTicketId,
+                    1,
                     1,
                     ""
                 );
@@ -940,6 +1120,7 @@ contract KttyWorldMinting is
 
         // Check native payment
         if (msg.value < totalNative) revert InsufficientPayment();
+        if (msg.value <= 0) revert InsufficientPayment();
 
         // Process ERC20 payment if required
         if (totalErc20 > 0) {

@@ -12,11 +12,11 @@ const ROUND_NUMBER = 2; // Change this to the round you want to configure (1-4)
 const PAYMENT_TYPE = 0; // Change to 1 for HYBRID payment
 
 // Native payment amount in ETH (will be converted to wei)
-const NATIVE_AMOUNT_ETH = "0.0001"; // Change this value
+const NATIVE_AMOUNT_ETH = "35"; // Change this value
 
 // ERC20 payment amount (only used for HYBRID payment type)
 // This should be in the token's base units (e.g., if token has 18 decimals, 1 = 1e18 base units)
-const ERC20_AMOUNT = "1"; // Change this value, will be converted based on token decimals
+const ERC20_AMOUNT = "0"; // Change this value, will be converted based on token decimals
 
 // Token decimals (only needed for HYBRID payment)
 const TOKEN_DECIMALS = 18; // Change if your token has different decimals

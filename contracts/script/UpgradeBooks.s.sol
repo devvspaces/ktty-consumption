@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
-import {DummyBooks} from "../src/KttyWorldBooks.sol";
+import {KttyWorldBooks} from "../src/KttyWorldBooks.sol";
 
 contract UpgradeNFTRewardManagerScript is Script {
     function run() external {
@@ -12,11 +12,11 @@ contract UpgradeNFTRewardManagerScript is Script {
         vm.startBroadcast(deployerPrivateKey);
         
         // Deploy new implementation
-        DummyBooks newImplementation = new DummyBooks();
+        KttyWorldBooks newImplementation = new KttyWorldBooks();
         console.log("New Books implementation deployed at:", address(newImplementation));
 
         // Upgrade the proxy
-        DummyBooks proxy = DummyBooks(proxyAddress);
+        KttyWorldBooks proxy = KttyWorldBooks(proxyAddress);
         try proxy.upgradeToAndCall(address(newImplementation), "") {
             console.log("Upgrade successful!");
         } catch Error(string memory reason) {

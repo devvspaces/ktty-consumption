@@ -1,0 +1,125 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: ktty-indexer-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ktty_indexer
+      POSTGRES_USER: ktty_indexer
+      POSTGRES_PASSWORD: secure_password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - ktty-indexer
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ktty_indexer -d ktty_indexer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ktty-indexer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Application
+      NODE_ENV: production
+      PORT: 3001
+      APP_NAME: ktty-companions-indexer
+      
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ktty_indexer
+      DB_PASSWORD: secure_password
+      DB_NAME: ktty_indexer
+      
+      # Blockchain - OVERRIDE THESE IN .env FILE
+      RPC_URL: ${RPC_URL:-https://mainnet.infura.io/v3/YOUR_INFURA_KEY}
+      RPC_URL_FALLBACK: ${RPC_URL_FALLBACK:-}
+      CONTRACT_ADDRESS: ${CONTRACT_ADDRESS:-0x0000000000000000000000000000000000000000}
+      DEPLOYMENT_BLOCK: ${DEPLOYMENT_BLOCK:-0}
+      NETWORK: ${NETWORK:-mainnet}
+      
+      # Indexer Configuration
+      MAX_BLOCKS_PER_BATCH: ${MAX_BLOCKS_PER_BATCH:-1000}
+      EVENT_RETRY_ATTEMPTS: ${EVENT_RETRY_ATTEMPTS:-3}
+      EVENT_RETRY_DELAY_MS: ${EVENT_RETRY_DELAY_MS:-1000}
+      METADATA_FETCH_TIMEOUT_MS: ${METADATA_FETCH_TIMEOUT_MS:-10000}
+      METADATA_RETRY_ATTEMPTS: ${METADATA_RETRY_ATTEMPTS:-3}
+      
+      # Monitoring
+      HEALTH_CHECK_INTERVAL_MS: ${HEALTH_CHECK_INTERVAL_MS:-30000}
+      SYNC_STATUS_LOG_INTERVAL_MS: ${SYNC_STATUS_LOG_INTERVAL_MS:-60000}
+      
+      # Rate Limiting
+      RPC_REQUESTS_PER_SECOND: ${RPC_REQUESTS_PER_SECOND:-10}
+      METADATA_REQUESTS_PER_SECOND: ${METADATA_REQUESTS_PER_SECOND:-5}
+    ports:
+      - "3001:3001"
+    networks:
+      - ktty-indexer
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: Redis for caching (can be added later)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: ktty-indexer-redis
+  #   restart: unless-stopped
+  #   command: redis-server --appendonly yes
+  #   volumes:
+  #     - redis_data:/data
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - ktty-indexer
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  # redis_data:
+  #   driver: local
+
+networks:
+  ktty-indexer:
+    driver: bridge

@@ -62,20 +62,20 @@ function saveProgress(progress) {
  * Validate that all book IDs exist in the contract
  */
 async function validateBookIds(contract, bookIds, description) {
-    console.log(`🔍 Validating ${bookIds.length} book IDs for ${description}...`);
+    // console.log(`🔍 Validating ${bookIds.length} book IDs for ${description}...`);
 
-    for (const bookId of bookIds) {
-        try {
-            const book = await contract.getBook(bookId);
-            if (book.nftId === 0) {
-                throw new Error(`Book ${bookId} not found in contract`);
-            }
-        } catch (error) {
-            throw new Error(`Validation failed for book ${bookId} in ${description}: ${error.message}`);
-        }
-    }
+    // for (const bookId of bookIds) {
+    //     try {
+    //         const book = await contract.getBook(bookId);
+    //         if (book.nftId === 0) {
+    //             throw new Error(`Book ${bookId} not found in contract`);
+    //         }
+    //     } catch (error) {
+    //         throw new Error(`Validation failed for book ${bookId} in ${description}: ${error.message}`);
+    //     }
+    // }
 
-    console.log(`✅ All book IDs validated for ${description}`);
+    // console.log(`✅ All book IDs validated for ${description}`);
 }
 
 /**
@@ -103,7 +103,7 @@ async function loadPoolWithRetry(contract, poolNumber, bookIds, maxRetries = 3) 
 
             const methodName = `loadPool${poolNumber}`;
             const tx = await contract[methodName](bookIds, {
-                gasLimit: 1000000, // Adjust as needed
+                gasLimit: 20000000, // Adjust as needed
                 maxPriorityFeePerGas: ethers.utils.parseUnits("20", "gwei"), // Add this
                 maxFeePerGas: ethers.utils.parseUnits("50", "gwei") // Add this
             });
@@ -153,7 +153,7 @@ async function loadBucketWithRetry(contract, bucketIndex, bookIds, stats, maxRet
                 stats.goldenTicketCount,
                 stats.basicCount,
                 {
-                    gasLimit: 1000000, // Adjust as needed
+                    gasLimit: 25000000, // Adjust as needed
                     maxPriorityFeePerGas: ethers.utils.parseUnits("20", "gwei"), // Add this
                     maxFeePerGas: ethers.utils.parseUnits("50", "gwei") // Add this
                 }

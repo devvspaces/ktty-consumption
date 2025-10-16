@@ -6,16 +6,16 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/// @title DummyBooks
+/// @title KttyWorldBooks
 /// @notice ERC721 contract for KTTY World summoning books with reveal mechanism
 /// @dev UUPS upgradeable contract with namespaced storage
-contract DummyBooks is
+contract KttyWorldBooks is
     Initializable,
     ERC721Upgradeable,
     OwnableUpgradeable,
     UUPSUpgradeable
 {
-    /// @custom:storage-location erc7201:ktty.storage.DummyBooks
+    /// @custom:storage-location erc7201:ktty.storage.KttyWorldBooks
     struct KttyWorldBooksStorage {
         uint256 totalSupply;
         uint256 maxSupply;
@@ -28,7 +28,7 @@ contract DummyBooks is
         address mintingContract;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("ktty.storage.DummyBooks")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256(abi.encode(uint256(keccak256("ktty.storage.KttyWorldBooks")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant KTTY_WORLD_BOOKS_STORAGE_LOCATION =
         0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a00;
 
@@ -378,6 +378,18 @@ contract DummyBooks is
     function _exists(uint256 tokenId) internal view returns (bool) {
         KttyWorldBooksStorage storage $ = _getKttyWorldBooksStorage();
         return $.tokenExists[tokenId];
+    }
+
+    function _getERC721Storage2() private pure returns (ERC721Storage storage $) {
+        assembly {
+            $.slot := 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079300
+        }
+    }
+
+    /// @notice Update the ERC721 name
+    /// @param _name The new name for the NFT collection
+    function updateName(string calldata _name) external onlyOwner {
+        _getERC721Storage2()._name = _name;
     }
 
     /// @notice Convert uint256 to string

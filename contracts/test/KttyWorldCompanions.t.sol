@@ -3,10 +3,10 @@ pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {DummyCompanions} from "src/KttyWorldCompanions.sol";
+import {KttyWorldCompanions} from "src/KttyWorldCompanions.sol";
 
 contract KttyWorldCompanionsTest is Test {
-    DummyCompanions public companions;
+    KttyWorldCompanions public companions;
     
     address public owner;
     address public mintContract;
@@ -14,7 +14,7 @@ contract KttyWorldCompanionsTest is Test {
     
     string constant NAME = "KTTY World Companions";
     string constant SYMBOL = "KWC";
-    string constant HIDDEN_URI = "https://hidden.example.com/metadata.json";
+    string constant HIDDEN_URI = "https://hidden.example.com/metadata/";
     string constant BASE_URI = "https://revealed.example.com/metadata/";
     uint256 constant MAX_SUPPLY = 10000;
     
@@ -22,6 +22,7 @@ contract KttyWorldCompanionsTest is Test {
     event HiddenMetadataUriUpdated(string hiddenMetadataUri);
     event BaseTokenUriUpdated(string baseTokenUri);
     event BatchMinted(address indexed to, uint256 startTokenId, uint256 quantity);
+    event TokenCodesUpdated(uint256[] tokenIds, string[] codes);
 
     function setUp() public {
         owner = makeAddr("owner");
@@ -29,11 +30,11 @@ contract KttyWorldCompanionsTest is Test {
         user = makeAddr("user");
         
         // Deploy implementation
-        DummyCompanions implementation = new DummyCompanions();
+        KttyWorldCompanions implementation = new KttyWorldCompanions();
         
         // Prepare initialization data
         bytes memory initData = abi.encodeCall(
-            DummyCompanions.initialize,
+            KttyWorldCompanions.initialize,
             (owner, NAME, SYMBOL, HIDDEN_URI, MAX_SUPPLY)
         );
         
@@ -41,7 +42,7 @@ contract KttyWorldCompanionsTest is Test {
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         
         // Cast proxy to interface
-        companions = DummyCompanions(address(proxy));
+        companions = KttyWorldCompanions(address(proxy));
     }
 
     function test_Initialize() public view {
@@ -76,7 +77,7 @@ contract KttyWorldCompanionsTest is Test {
     function test_RevertWhen_BatchMintZeroQuantity() public {
         vm.startPrank(owner);
         
-        vm.expectRevert(DummyCompanions.BatchSizeZero.selector);
+        vm.expectRevert(KttyWorldCompanions.BatchSizeZero.selector);
         companions.batchMint(mintContract, 0);
         
         vm.stopPrank();
@@ -85,7 +86,7 @@ contract KttyWorldCompanionsTest is Test {
     function test_RevertWhen_BatchMintExceedsMaxSupply() public {
         vm.startPrank(owner);
         
-        vm.expectRevert(DummyCompanions.ExceedsMaxSupply.selector);
+        vm.expectRevert(KttyWorldCompanions.ExceedsMaxSupply.selector);
         companions.batchMint(mintContract, MAX_SUPPLY + 1);
         
         vm.stopPrank();
@@ -118,7 +119,7 @@ contract KttyWorldCompanionsTest is Test {
         
         companions.mintAll(mintContract, MAX_SUPPLY);
         
-        vm.expectRevert(DummyCompanions.MaxSupplyReached.selector);
+        vm.expectRevert(KttyWorldCompanions.MaxSupplyReached.selector);
         companions.mintAll(mintContract, MAX_SUPPLY);
         
         vm.stopPrank();
@@ -200,7 +201,7 @@ contract KttyWorldCompanionsTest is Test {
         companions.batchMint(mintContract, 1);
         
         string memory uri = companions.tokenURI(1);
-        assertEq(uri, HIDDEN_URI);
+        assertEq(uri, string(abi.encodePacked(HIDDEN_URI, _toString(1), ".json")));
         
         vm.stopPrank();
     }
@@ -210,17 +211,196 @@ contract KttyWorldCompanionsTest is Test {
         
         companions.batchMint(mintContract, 1);
         companions.setBaseTokenUri(BASE_URI);
+        
+        // Set random code for the token
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = 1;
+        
+        string[] memory codes = new string[](1);
+        codes[0] = "randomcode123";
+        
+        companions.setBulkTokenCodes(tokenIds, codes);
         companions.setRevealed(true);
         
         string memory uri = companions.tokenURI(1);
-        assertEq(uri, string(abi.encodePacked(BASE_URI, "1.json")));
+        assertEq(uri, string(abi.encodePacked(BASE_URI, codes[0])));
         
         vm.stopPrank();
     }
 
     function test_RevertWhen_TokenURIInvalidToken() public {
-        vm.expectRevert(DummyCompanions.InvalidTokenId.selector);
+        vm.expectRevert(KttyWorldCompanions.InvalidTokenId.selector);
         companions.tokenURI(1);
+    }
+
+    function test_SetBulkTokenCodes() public {
+        vm.startPrank(owner);
+        
+        // First mint some tokens
+        companions.batchMint(mintContract, 3);
+        
+        // Prepare token codes
+        uint256[] memory tokenIds = new uint256[](3);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
+        tokenIds[2] = 3;
+        
+        string[] memory codes = new string[](3);
+        codes[0] = "bafkreibs72f53tpj5u7ne6ztz7ckwolzdexyi7wghqo4hnx4mlqdy47wde";
+        codes[1] = "bafkreiabcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        codes[2] = "bafkreighijkl9876543210ghijkl9876543210ghijkl9876543210ghijkl";
+        
+        // Expect event emission
+        vm.expectEmit(true, true, true, true);
+        emit TokenCodesUpdated(tokenIds, codes);
+        
+        // Set bulk token codes
+        companions.setBulkTokenCodes(tokenIds, codes);
+        
+        // Verify codes were set correctly
+        assertEq(companions.getTokenCode(1), codes[0]);
+        assertEq(companions.getTokenCode(2), codes[1]);
+        assertEq(companions.getTokenCode(3), codes[2]);
+        
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_SetBulkTokenCodesNotOwner() public {
+        vm.startPrank(owner);
+        companions.batchMint(mintContract, 1);
+        vm.stopPrank();
+        
+        vm.startPrank(user);
+        
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = 1;
+        
+        string[] memory codes = new string[](1);
+        codes[0] = "bafkreibs72f53tpj5u7ne6ztz7ckwolzdexyi7wghqo4hnx4mlqdy47wde";
+        
+        vm.expectRevert();
+        companions.setBulkTokenCodes(tokenIds, codes);
+        
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_SetBulkTokenCodesArrayLengthMismatch() public {
+        vm.startPrank(owner);
+        
+        companions.batchMint(mintContract, 2);
+        
+        uint256[] memory tokenIds = new uint256[](2);
+        tokenIds[0] = 1;
+        tokenIds[1] = 2;
+        
+        string[] memory codes = new string[](1);
+        codes[0] = "bafkreibs72f53tpj5u7ne6ztz7ckwolzdexyi7wghqo4hnx4mlqdy47wde";
+        
+        vm.expectRevert(KttyWorldCompanions.ArrayLengthMismatch.selector);
+        companions.setBulkTokenCodes(tokenIds, codes);
+        
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_SetBulkTokenCodesBatchSizeZero() public {
+        vm.startPrank(owner);
+        
+        uint256[] memory tokenIds = new uint256[](0);
+        string[] memory codes = new string[](0);
+        
+        vm.expectRevert(KttyWorldCompanions.BatchSizeZero.selector);
+        companions.setBulkTokenCodes(tokenIds, codes);
+        
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_SetBulkTokenCodesInvalidTokenId() public {
+        vm.startPrank(owner);
+        
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = 999; // Non-existent token
+        
+        string[] memory codes = new string[](1);
+        codes[0] = "bafkreibs72f53tpj5u7ne6ztz7ckwolzdexyi7wghqo4hnx4mlqdy47wde";
+        
+        vm.expectRevert(KttyWorldCompanions.InvalidTokenId.selector);
+        companions.setBulkTokenCodes(tokenIds, codes);
+        
+        vm.stopPrank();
+    }
+
+    function test_GetTokenCode() public {
+        vm.startPrank(owner);
+        
+        companions.batchMint(mintContract, 1);
+        
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = 1;
+        
+        string[] memory codes = new string[](1);
+        codes[0] = "bafkreibs72f53tpj5u7ne6ztz7ckwolzdexyi7wghqo4hnx4mlqdy47wde";
+        
+        companions.setBulkTokenCodes(tokenIds, codes);
+        
+        string memory retrievedCode = companions.getTokenCode(1);
+        assertEq(retrievedCode, codes[0]);
+        
+        vm.stopPrank();
+    }
+
+    function test_GetTokenCode_EmptyCode() public {
+        vm.startPrank(owner);
+        
+        companions.batchMint(mintContract, 1);
+        
+        // Token exists but no code set yet
+        string memory retrievedCode = companions.getTokenCode(1);
+        assertEq(retrievedCode, "");
+        
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_GetTokenCodeInvalidTokenId() public {
+        vm.expectRevert(KttyWorldCompanions.InvalidTokenId.selector);
+        companions.getTokenCode(999);
+    }
+
+    function test_TokenURI_WithRandomCodes() public {
+        vm.startPrank(owner);
+        
+        companions.batchMint(mintContract, 1);
+        companions.setBaseTokenUri("https://amber-eligible-dragon-276.mypinata.cloud/ipfs/");
+        
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = 1;
+        
+        string[] memory codes = new string[](1);
+        codes[0] = "bafkreibs72f53tpj5u7ne6ztz7ckwolzdexyi7wghqo4hnx4mlqdy47wde";
+        
+        companions.setBulkTokenCodes(tokenIds, codes);
+        companions.setRevealed(true);
+        
+        string memory uri = companions.tokenURI(1);
+        string memory expectedUri = string(abi.encodePacked(
+            "https://amber-eligible-dragon-276.mypinata.cloud/ipfs/",
+            codes[0]
+        ));
+        assertEq(uri, expectedUri);
+        
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_TokenURIRevealedButNoCode() public {
+        vm.startPrank(owner);
+        
+        companions.batchMint(mintContract, 1);
+        companions.setBaseTokenUri("https://amber-eligible-dragon-276.mypinata.cloud/ipfs/");
+        companions.setRevealed(true);
+        
+        vm.expectRevert(KttyWorldCompanions.TokenCodeNotSet.selector);
+        companions.tokenURI(1);
+        
+        vm.stopPrank();
     }
 
     function testFuzz_BatchMint(uint96 quantity, uint256 actorSeed) public {
@@ -271,12 +451,19 @@ contract KttyWorldCompanionsTest is Test {
         
         // Test hidden state
         string memory hiddenUri = companions.tokenURI(tokenId);
-        assertEq(hiddenUri, HIDDEN_URI);
+        assertEq(hiddenUri, string(abi.encodePacked(HIDDEN_URI, _toString(tokenId), ".json")));
         
-        // Test revealed state
+        // Test revealed state - need to set random codes first
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = tokenId;
+        
+        string[] memory codes = new string[](1);
+        codes[0] = "testcode";
+        
+        companions.setBulkTokenCodes(tokenIds, codes);
         companions.setRevealed(true);
         string memory revealedUri = companions.tokenURI(tokenId);
-        assertEq(revealedUri, string(abi.encodePacked(BASE_URI, _toString(tokenId), ".json")));
+        assertEq(revealedUri, string(abi.encodePacked(BASE_URI, codes[0])));
         
         vm.stopPrank();
     }
@@ -306,7 +493,7 @@ contract KttyWorldCompanionsTest is Test {
 }
 
 contract KttyWorldCompanionsInvariantTest is Test {
-    DummyCompanions public companions;
+    KttyWorldCompanions public companions;
     KttyWorldCompanionsHandler public handler;
     
     address public owner;
@@ -316,11 +503,11 @@ contract KttyWorldCompanionsInvariantTest is Test {
         owner = makeAddr("owner");
         
         // Deploy implementation
-        DummyCompanions implementation = new DummyCompanions();
+        KttyWorldCompanions implementation = new KttyWorldCompanions();
         
         // Prepare initialization data
         bytes memory initData = abi.encodeCall(
-            DummyCompanions.initialize,
+            KttyWorldCompanions.initialize,
             (owner, "KTTY World Companions", "KWC", "https://hidden.com/", MAX_SUPPLY)
         );
         
@@ -328,7 +515,7 @@ contract KttyWorldCompanionsInvariantTest is Test {
         ERC1967Proxy proxy = new ERC1967Proxy(address(implementation), initData);
         
         // Cast proxy to interface
-        companions = DummyCompanions(address(proxy));
+        companions = KttyWorldCompanions(address(proxy));
         handler = new KttyWorldCompanionsHandler(companions, owner);
         
         targetContract(address(handler));
@@ -357,13 +544,13 @@ contract KttyWorldCompanionsInvariantTest is Test {
 }
 
 contract KttyWorldCompanionsHandler is Test {
-    DummyCompanions public companions;
+    KttyWorldCompanions public companions;
     address public owner;
     
     uint256 public ghost_totalBalance;
     address[] public actors;
 
-    constructor(DummyCompanions _companions, address _owner) {
+    constructor(KttyWorldCompanions _companions, address _owner) {
         companions = _companions;
         owner = _owner;
         

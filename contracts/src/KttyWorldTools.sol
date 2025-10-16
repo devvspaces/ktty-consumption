@@ -6,11 +6,11 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/// @title DummyTools
+/// @title KttyWorldTools
 /// @notice ERC1155 contract for KTTY World Tools with dynamic token types and global reveal mechanism
 /// @dev UUPS upgradeable contract with namespaced storage
-contract DummyTools is Initializable, ERC1155Upgradeable, OwnableUpgradeable, UUPSUpgradeable {
-    /// @custom:storage-location erc7201:ktty.storage.DummyTools
+contract KttyWorldTools is Initializable, ERC1155Upgradeable, OwnableUpgradeable, UUPSUpgradeable {
+    /// @custom:storage-location erc7201:ktty.storage.KttyWorldTools
     struct KttyWorldToolsStorage {
         uint256 nextTokenId;
         bool revealed;
@@ -21,7 +21,7 @@ contract DummyTools is Initializable, ERC1155Upgradeable, OwnableUpgradeable, UU
         mapping(uint256 => string) tokenUris;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("ktty.storage.DummyTools")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256(abi.encode(uint256(keccak256("ktty.storage.KttyWorldTools")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant KTTY_WORLD_TOOLS_STORAGE_LOCATION = 
         0xa8c3c2ae5f3d5f8b7e8a5b4c7f2e1d8a9b6c3f0e2d5a8b7c4f1e8d5a2b9c6f00;
 

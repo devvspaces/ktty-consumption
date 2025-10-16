@@ -54,24 +54,27 @@ forge script script/UpgradeMinting.s.sol --rpc-url rpc_url --broadcast -vvv
 
 # Upgrade minting contract
 forge script script/UpgradeBooks.s.sol --rpc-url rpc_url --broadcast -vvv
+
+# Upgrade minting contract
+forge script script/UpgradeCompanions.s.sol --rpc-url rpc_url --broadcast -vvv
 ```
 
 ## Verify contracts
 
 ```bash
-forge verify-contract --verifier sourcify --verifier-url https://sourcify.roninchain.com/server/ --chain-id 2020 "0x096A4ea0F0fca1B89e1cA79e9462470924fE89B9" dependencies/@openzeppelin-contracts-5.4.0/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy
+forge verify-contract --verifier sourcify --verifier-url https://sourcify.roninchain.com/server/ --chain-id 2020 "0x93cc76578E049C338D666DcfcE91929dfBB3033a" dependencies/@openzeppelin-contracts-5.4.0/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy
 
 
-forge verify-contract --verifier sourcify --verifier-url https://sourcify.roninchain.com/server/ --chain-id 2020 "0x905fc59bb45cebacC80B79dD4B01921233E39272" src/KttyWorldCompanions.sol:DummyCompanions
+forge verify-contract --verifier sourcify --verifier-url https://sourcify.roninchain.com/server/ --chain-id 2020 "0xe79860E645d2d546fe7Bd1A81FDe3D6C3FdAF506" src/KttyWorldCompanions.sol:KttyWorldCompanions
 
 
-forge verify-contract --verifier sourcify --verifier-url https://sourcify.roninchain.com/server/ --chain-id 2020 "0x26b5ebc57D0eF13dadd41A52Ba32B28Ee06D7Fae" src/KttyWorldBooks.sol:DummyBooks
+forge verify-contract --verifier sourcify --verifier-url https://sourcify.roninchain.com/server/ --chain-id 2020 "0x9C0e11C0581453531B5e32d6cBa6bfb77D3D0EB6" src/KttyWorldBooks.sol:KttyWorldBooks
 
 
-forge verify-contract --verifier sourcify --verifier-url https://sourcify.roninchain.com/server/ --chain-id 2020 "0xD5BA8E6bEB096954804B61220F91dC73714c33E0" src/KttyWorldTools.sol:DummyTools
+forge verify-contract --verifier sourcify --verifier-url https://sourcify.roninchain.com/server/ --chain-id 2020 "0xa71132f3251187e82A4B430fe10Ba800C9e29f7f" src/KttyWorldTools.sol:KttyWorldTools
 
 
-forge verify-contract --verifier sourcify --verifier-url https://sourcify.roninchain.com/server/ --chain-id 2020 "0xc2612b4eCDa1BfA7A5860Fdb36f7211983443dBa" src/KttyWorldCollectibles.sol:DummyCollectibles
+forge verify-contract --verifier sourcify --verifier-url https://sourcify.roninchain.com/server/ --chain-id 2020 "0x0171fe2cd9bC95096022307B8855F052A0c93127" src/KttyWorldCollectibles.sol:KttyWorldCollectibles
 
 
 ```
@@ -125,37 +128,45 @@ node scripts/loadDistributions.js
 0xd8C4E87473bc36B6d1A22e4fbB5Bf3681c26B3C1
 0xA0Ca70DFB6Fb79fD5EF160D3EAc677868547ffEF
 
-cast call \
+cast send \
 $MINTING_CONTRACT_ADDRESS \
 "setWhitelistAllowances(uint256,address[],uint256[])" \
 1 \
-"[0xd8C4E87473bc36B6d1A22e4fbB5Bf3681c26B3C1, \
-0xC792F91084F131e18adcBE28045737b94ac5C922, \
-0x0DE92325AC09eC459Fe02625c144Ee07B3115dA1, \
-0x2E9eB05347148Ad9bf7bc001092a8fD353D774cf, \
+"[0xA0Ca70DFB6Fb79fD5EF160D3EAc677868547ffEF, \
 0xA0Ca70DFB6Fb79fD5EF160D3EAc677868547ffEF]" \
-"[3,3,3,3,3]" \
+"[3,3]" \
 --rpc-url rpc_url \
 --private-key $PRIVATE_KEY
 
-cast call \
+cast send \
 $MINTING_CONTRACT_ADDRESS \
 "setWhitelistAllowances(uint256,address[],uint256[])" \
 2 \
 "[0xd8C4E87473bc36B6d1A22e4fbB5Bf3681c26B3C1, \
 0xC792F91084F131e18adcBE28045737b94ac5C922, \
-0x0DE92325AC09eC459Fe02625c144Ee07B3115dA1, \
-0x2E9eB05347148Ad9bf7bc001092a8fD353D774cf, \
+0x6cCEE92AA207C7CA81fe8B63D30A2FCDb7f0089E, \
+0x9B100F221b1975230DD007D1E5e59accF9e7b911, \
+0xa021a0Dd5073AEb3d2D5cd39B7A0a7710Ef18977, \
+0x36987b91dd3e3455EecF5C3306147B81CF51Ac77, \
 0xA0Ca70DFB6Fb79fD5EF160D3EAc677868547ffEF]" \
-"[10,10,10,10,10]" \
+"[10,10,10,10,10,10,10]" \
 --rpc-url rpc_url \
 --private-key $PRIVATE_KEY
 
 
-cast call \
+cast send \
 $MINTING_CONTRACT_ADDRESS \
 "setRound3MerkleRoot(bytes32)" \
-0x2aa757b2803ce74ce3676de8eb505f07bc5f289dfa94fa7001f6c4232aee1050 \
+0xa56aeba8878f1cf3991c0347a322b8059f20178cdade199a30e1847dedbd46c6 \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY
+
+cast send \
+"0x8A9b145124b9783d4f9a5262847bcD6eF20B8D1C" \
+"configureRound(uint256,uint256,uint256)" \
+3 \
+1759440531 \
+1759440531 \
 --rpc-url rpc_url \
 --private-key $PRIVATE_KEY
 
@@ -163,16 +174,16 @@ cast send \
 $MINTING_CONTRACT_ADDRESS \
 "configureRound(uint256,uint256,uint256)" \
 4 \
-1758585600 \
-1758844800 \
+1759440531 \
+1854158400 \
 --rpc-url rpc_url \
 --private-key $PRIVATE_KEY
 
 cast call \
 $MINTING_CONTRACT_ADDRESS \
 "setTreasuryWallet(address)" \
-0xA0Ca70DFB6Fb79fD5EF160D3EAc677868547ffEF \
---rpc-url rpc_url \
+"0x3A60dB98166D138BEA5d182E1238F3AE9f6C88cD" \
+--rpc-url rpc_url \  
 --private-key $PRIVATE_KEY
 
 cast call \
@@ -196,7 +207,7 @@ $MINTING_CONTRACT_ADDRESS \
 --private-key $PRIVATE_KEY
 
 cast call \
-$BOOKS_ADDRESS \
+$COMPANIONS_ADDRESS \
 "setRevealed(bool)" \
 true \
 --rpc-url rpc_url \
@@ -212,13 +223,115 @@ $BOOKS_ADDRESS \
 
 cast call \
 $MINTING_CONTRACT_ADDRESS \
+"distributePool1SpilloverToBuckets(uint256)" \
+200 \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY
+
+cast call \
+$MINTING_CONTRACT_ADDRESS \
+"getPool1SpilloverProgress()(uint256,uint256,uint256)" \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY
+
+cast call \
+$MINTING_CONTRACT_ADDRESS \
+"distributeSpilloverToBuckets()" \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY \
+--gas-limit 20000000 \
+--priority-gas-price 20000000000 \  # 2 gwei priority fee
+--max-fee-per-gas 50000000000      # 50 gwei max fee
+
+cast call \
+$MINTING_CONTRACT_ADDRESS \
 "distributeSpilloverToBuckets()" \
 --rpc-url rpc_url \
 --private-key $PRIVATE_KEY
 
 cast call \
 $MINTING_CONTRACT_ADDRESS \
+"mint(uint256,uint8,bytes32[])" \
+1 \
+1 \
+"[]" \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY \
+--value 25000000000000000000
+
+cast call \
+$MINTING_CONTRACT_ADDRESS \
 "getPoolAndBucketStatus()(uint256,uint256,uint256,uint256,uint256,uint256[2][8])" \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY
+
+
+cast call \
+$MINTING_CONTRACT_ADDRESS \
+"mint(uint256,uint8,bytes32[])" \
+1 \
+1 \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY
+
+
+cast call \
+$BOOKS_ADDRESS \
+"name()(string)" \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY
+
+
+cast call \
+$BOOKS_ADDRESS \
+"updateName(string)" \
+"Ktty World Books" \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY
+
+cast call \
+$BOOKS_ADDRESS \
+"ownerOf(uint256)(address)" \
+1813 \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY
+
+cast call \
+$COMPANIONS_ADDRESS \
+"setHiddenMetadataUri(string)" \
+"https://amber-eligible-dragon-276.mypinata.cloud/ipfs/bafybeihduimd3hoobarsx26ti42ehsf2hee3l5gt3wimv52iqit7uexyqi/" \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY
+
+
+cast call \
+$MINTING_CONTRACT_ADDRESS \
+"setTreasuryWallet(address)" \
+"0x3A60dB98166D138BEA5d182E1238F3AE9f6C88cD" \
+--rpc-url rpc_url --private-key $PRIVATE_KEY
+
+80, 76 70 61 55 53 50 45 42 40 38 34 21 19
+
+cast send \
+"0x33099daa3a4a8d876be198e312be675b0614610e" \
+"transferFrom(address,address,uint256)" \
+0xA0Ca70DFB6Fb79fD5EF160D3EAc677868547ffEF \
+0xa021a0Dd5073AEb3d2D5cd39B7A0a7710Ef18977 \
+19 \
+--rpc-url rpc_url --private-key $PRIVATE_KEY
+
+# base url companions 
+
+cast call \
+$COMPANIONS_ADDRESS \
+"setBaseTokenUri(string)" \
+"https://amber-eligible-dragon-276.mypinata.cloud/ipfs/" \
+--rpc-url rpc_url \
+--private-key $PRIVATE_KEY
+
+cast call \
+$COMPANIONS_ADDRESS \
+"baseTokenUri()(string)" \
 --rpc-url rpc_url \
 --private-key $PRIVATE_KEY
 

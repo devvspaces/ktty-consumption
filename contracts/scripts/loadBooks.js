@@ -5,7 +5,7 @@ const BOOK_ABI = require("./../out/KttyWorldBooks.sol/KttyWorldBooks.json").abi;
 require('dotenv').config();
 
 // Configuration
-const BATCH_SIZE = 10; // Books per transaction
+const BATCH_SIZE = 100; // Books per transaction
 const BOOKS_FILE = path.join(__dirname, 'all-books.json');
 const PROGRESS_FILE = path.join(__dirname, 'books-loaded-progress.json');
 
@@ -130,7 +130,7 @@ async function loadBooksWithRetry(contract, to, batchData, batchNumber, maxRetri
                 batchData.goldenTicketIds,
                 batchData.series,
                 {
-                    gasLimit: 3000000, // Adjust as needed
+                    gasLimit: 20000000, // Adjust as needed
                     maxPriorityFeePerGas: ethers.utils.parseUnits("20", "gwei"), // Add this
                     maxFeePerGas: ethers.utils.parseUnits("50", "gwei") // Add this
                 }
@@ -180,10 +180,6 @@ async function loadBooks() {
 
     if (!process.env.BOOKS_ADDRESS) {
         throw new Error('BOOKS_ADDRESS not found in environment variables');
-    }
-
-    if (!process.env.MINTING_CONTRACT_ADDRESS) {
-        throw new Error('MINTING_CONTRACT_ADDRESS not found in environment variables');
     }
 
     // Load books data
@@ -280,7 +276,7 @@ async function loadBooks() {
         const batchData = prepareBatchData(notLoadedBooks);
 
         // Load books with retry
-        const result = await loadBooksWithRetry(contract, process.env.MINTING_CONTRACT_ADDRESS, batchData, batchNumber);
+        const result = await loadBooksWithRetry(contract, "0xbE8946ca804E13E6ADE67b18352bc4E083fd69b2", batchData, batchNumber);
 
         if (result.success) {
             progress.batchesCompleted++;
@@ -304,8 +300,8 @@ async function loadBooks() {
 
         // Add delay between batches to avoid rate limiting
         if (batchIndex < batches.length - 1) {
-            console.log('⏳ Waiting 2 seconds before next batch...');
-            await sleep(2000);
+            // console.log('⏳ Waiting 2 seconds before next batch...');
+            // await sleep(2000);
         }
     }
 

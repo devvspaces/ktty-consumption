@@ -3,16 +3,16 @@ pragma solidity ^0.8.20;
 
 import {Test, console} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {DummyBooks} from "src/KttyWorldBooks.sol";
+import {KttyWorldBooks} from "src/KttyWorldBooks.sol";
 
 contract MockMintingContract {
     function burnBook(address booksContract, uint256 tokenId) external {
-        DummyBooks(booksContract).burnBook(tokenId);
+        KttyWorldBooks(booksContract).burnBook(tokenId);
     }
 }
 
 contract KttyWorldBooksTest is Test {
-    DummyBooks public books;
+    KttyWorldBooks public books;
     MockMintingContract public mockMinting;
     
     address public owner;
@@ -43,11 +43,11 @@ contract KttyWorldBooksTest is Test {
         mockMinting = new MockMintingContract();
         
         // Deploy Books implementation
-        DummyBooks booksImpl = new DummyBooks();
+        KttyWorldBooks booksImpl = new KttyWorldBooks();
         
         // Prepare initialization data
         bytes memory initData = abi.encodeCall(
-            DummyBooks.initialize,
+            KttyWorldBooks.initialize,
             (
                 owner,
                 NAME,
@@ -64,7 +64,7 @@ contract KttyWorldBooksTest is Test {
             initData
         );
         
-        books = DummyBooks(address(booksProxy));
+        books = KttyWorldBooks(address(booksProxy));
     }
     
     // ============ INITIALIZATION & SETUP TESTS ============
@@ -155,7 +155,7 @@ contract KttyWorldBooksTest is Test {
         vm.prank(owner);
         books.batchMintBooks(user1, tokenIds, nftIds, toolIds, goldenTicketIds, series);
         
-        DummyBooks.Book memory book = books.getBook(1);
+        KttyWorldBooks.Book memory book = books.getBook(1);
         assertEq(book.nftId, 100);
         assertEq(book.toolIds[0], 10);
         assertEq(book.toolIds[1], 20);
@@ -173,7 +173,7 @@ contract KttyWorldBooksTest is Test {
         string[] memory series = new string[](2);
         
         vm.prank(owner);
-        vm.expectRevert(DummyBooks.InvalidArrayLength.selector);
+        vm.expectRevert(KttyWorldBooks.InvalidArrayLength.selector);
         books.batchMintBooks(user1, tokenIds, nftIds, toolIds, goldenTicketIds, series);
     }
     
@@ -193,7 +193,7 @@ contract KttyWorldBooksTest is Test {
         }
         
         vm.prank(owner);
-        vm.expectRevert(DummyBooks.ExceedsMaxSupply.selector);
+        vm.expectRevert(KttyWorldBooks.ExceedsMaxSupply.selector);
         books.batchMintBooks(user1, tokenIds, nftIds, toolIds, goldenTicketIds, series);
     }
     
@@ -205,7 +205,7 @@ contract KttyWorldBooksTest is Test {
         string[] memory series = new string[](0);
         
         vm.prank(owner);
-        vm.expectRevert(DummyBooks.BatchSizeZero.selector);
+        vm.expectRevert(KttyWorldBooks.BatchSizeZero.selector);
         books.batchMintBooks(user1, tokenIds, nftIds, toolIds, goldenTicketIds, series);
     }
     
@@ -347,20 +347,20 @@ contract KttyWorldBooksTest is Test {
         
         // Try to burn from unauthorized address
         vm.prank(user1);
-        vm.expectRevert(DummyBooks.OnlyMintingContract.selector);
+        vm.expectRevert(KttyWorldBooks.OnlyMintingContract.selector);
         books.burnBook(1);
         
         vm.prank(nonOwner);
-        vm.expectRevert(DummyBooks.OnlyMintingContract.selector);
+        vm.expectRevert(KttyWorldBooks.OnlyMintingContract.selector);
         books.burnBook(1);
         
         vm.prank(owner);
-        vm.expectRevert(DummyBooks.OnlyMintingContract.selector);
+        vm.expectRevert(KttyWorldBooks.OnlyMintingContract.selector);
         books.burnBook(1);
     }
     
     function test_RevertWhen_BurnNonExistentBook() public {
-        vm.expectRevert(DummyBooks.BookNotExists.selector);
+        vm.expectRevert(KttyWorldBooks.BookNotExists.selector);
         mockMinting.burnBook(address(books), 999);
     }
     
@@ -395,7 +395,7 @@ contract KttyWorldBooksTest is Test {
         assertTrue(books.exists(3));
         
         // Verify we can't get the burned book
-        vm.expectRevert(DummyBooks.InvalidTokenId.selector);
+        vm.expectRevert(KttyWorldBooks.InvalidTokenId.selector);
         books.getBook(2);
     }
     
@@ -417,7 +417,7 @@ contract KttyWorldBooksTest is Test {
         vm.prank(owner);
         books.batchMintBooks(user1, tokenIds, nftIds, toolIds, goldenTicketIds, series);
         
-        DummyBooks.Book memory book = books.getBook(1);
+        KttyWorldBooks.Book memory book = books.getBook(1);
         assertEq(book.nftId, 100);
         assertEq(book.toolIds[0], 10);
         assertEq(book.toolIds[1], 20);
@@ -428,7 +428,7 @@ contract KttyWorldBooksTest is Test {
     }
     
     function test_RevertWhen_GetBookInvalidTokenId() public {
-        vm.expectRevert(DummyBooks.InvalidTokenId.selector);
+        vm.expectRevert(KttyWorldBooks.InvalidTokenId.selector);
         books.getBook(999);
     }
     
@@ -504,7 +504,7 @@ contract KttyWorldBooksTest is Test {
         vm.prank(owner);
         books.batchMintBooks(user1, tokenIds, nftIds, toolIds, goldenTicketIds, series);
         
-        DummyBooks.Book[] memory userBooks = books.getUserBooksDetails(user1);
+        KttyWorldBooks.Book[] memory userBooks = books.getUserBooksDetails(user1);
         
         assertEq(userBooks.length, 2);
         
@@ -525,7 +525,7 @@ contract KttyWorldBooksTest is Test {
         uint256[] memory userBooks = books.getUserBooks(user2);
         assertEq(userBooks.length, 0);
         
-        DummyBooks.Book[] memory userBooksDetails = books.getUserBooksDetails(user2);
+        KttyWorldBooks.Book[] memory userBooksDetails = books.getUserBooksDetails(user2);
         assertEq(userBooksDetails.length, 0);
     }
     
@@ -619,7 +619,7 @@ contract KttyWorldBooksTest is Test {
     }
     
     function test_RevertWhen_TokenURIInvalidTokenId() public {
-        vm.expectRevert(DummyBooks.InvalidTokenId.selector);
+        vm.expectRevert(KttyWorldBooks.InvalidTokenId.selector);
         books.tokenURI(999);
     }
     
@@ -675,7 +675,7 @@ contract KttyWorldBooksTest is Test {
         books.batchMintBooks(user1, tokenIds, nftIds, toolIds, goldenTicketIds, series);
         
         // Old minting contract should no longer work
-        vm.expectRevert(DummyBooks.OnlyMintingContract.selector);
+        vm.expectRevert(KttyWorldBooks.OnlyMintingContract.selector);
         mockMinting.burnBook(address(books), 1);
         
         // New minting contract should work
@@ -703,7 +703,7 @@ contract KttyWorldBooksTest is Test {
         vm.prank(owner);
         books.batchMintBooks(user1, tokenIds, nftIds, toolIds, goldenTicketIds, series);
         
-        DummyBooks.Book memory book = books.getBook(1);
+        KttyWorldBooks.Book memory book = books.getBook(1);
         assertEq(book.goldenTicketId, 0);
         assertFalse(book.hasGoldenTicket);
         assertEq(book.series, "Type B");
@@ -751,7 +751,7 @@ contract KttyWorldBooksTest is Test {
         }
         
         vm.prank(owner);
-        vm.expectRevert(DummyBooks.ExceedsMaxSupply.selector);
+        vm.expectRevert(KttyWorldBooks.ExceedsMaxSupply.selector);
         books.batchMintBooks(user1, extraTokenIds, extraNftIds, extraToolIds, extraGoldenTicketIds, extraNftTypes);
     }
     

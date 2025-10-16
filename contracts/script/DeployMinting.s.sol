@@ -4,10 +4,10 @@ pragma solidity ^0.8.20;
 import {Script, console} from "forge-std/Script.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {KttyWorldMinting} from "../src/KttyWorldMinting.sol";
-import {DummyBooks} from "../src/KttyWorldBooks.sol";
-import {DummyCompanions} from "../src/KttyWorldCompanions.sol";
-import {DummyTools} from "../src/KttyWorldTools.sol";
-import {DummyCollectibles} from "../src/KttyWorldCollectibles.sol";
+import {KttyWorldBooks} from "../src/KttyWorldBooks.sol";
+import {KttyWorldCompanions} from "../src/KttyWorldCompanions.sol";
+import {KttyWorldTools} from "../src/KttyWorldTools.sol";
+import {KttyWorldCollectibles} from "../src/KttyWorldCollectibles.sol";
 
 contract DeployMinting is Script {
     // NFT contract addresses (UPDATE THESE FROM DeployNFTs.s.sol OUTPUT)
@@ -93,10 +93,10 @@ contract DeployMinting is Script {
     
     function deployMintingContract(address owner) internal returns (DeploymentResult memory result) {
         // Get NFT contract instances
-        DummyCompanions companions = DummyCompanions(COMPANIONS_ADDRESS);
-        DummyTools tools = DummyTools(TOOLS_ADDRESS);
-        DummyCollectibles collectibles = DummyCollectibles(COLLECTIBLES_ADDRESS);
-        DummyBooks books = DummyBooks(BOOKS_ADDRESS);
+        KttyWorldCompanions companions = KttyWorldCompanions(COMPANIONS_ADDRESS);
+        KttyWorldTools tools = KttyWorldTools(TOOLS_ADDRESS);
+        KttyWorldCollectibles collectibles = KttyWorldCollectibles(COLLECTIBLES_ADDRESS);
+        KttyWorldBooks books = KttyWorldBooks(BOOKS_ADDRESS);
         
         console.log("\n--- Deploying Minting Contract ---");
         

@@ -6,16 +6,16 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-/// @title DummyCompanions
+/// @title KttyWorldCompanions
 /// @notice ERC721 contract for KTTY World Companions NFTs with reveal mechanism
 /// @dev UUPS upgradeable contract with namespaced storage
-contract DummyCompanions is
+contract KttyWorldCompanions is
     Initializable,
     ERC721Upgradeable,
     OwnableUpgradeable,
     UUPSUpgradeable
 {
-    /// @custom:storage-location erc7201:ktty.storage.DummyCompanions
+    /// @custom:storage-location erc7201:ktty.storage.KttyWorldCompanions
     struct KttyWorldCompanionsStorage {
         uint256 totalSupply;
         uint256 maxSupply;
@@ -25,9 +25,10 @@ contract DummyCompanions is
         mapping(uint256 => bool) tokenExists;
         mapping(uint256 => bool) tokenRevealed;
         address mintingContract;
+        mapping(uint256 => string) tokenRandomCodes;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("ktty.storage.DummyCompanions")) - 1)) & ~bytes32(uint256(0xff))
+    // keccak256(abi.encode(uint256(keccak256("ktty.storage.KttyWorldCompanions")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant KTTY_WORLD_COMPANIONS_STORAGE_LOCATION =
         0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
 
@@ -43,12 +44,16 @@ contract DummyCompanions is
     event TokenRevealed(uint256 indexed tokenId);
     event TokensRevealed(uint256[] tokenIds);
     event MintingContractUpdated(address indexed newMintingContract);
+    event NameUpdated(string newName);
+    event TokenCodesUpdated(uint256[] tokenIds, string[] codes);
 
     error MaxSupplyReached();
     error InvalidTokenId();
     error BatchSizeZero();
     error OnlyOwnerOrMintingContract();
     error ExceedsMaxSupply();
+    error ArrayLengthMismatch();
+    error TokenCodeNotSet();
 
     function _getKttyWorldCompanionsStorage()
         private
@@ -217,18 +222,25 @@ contract DummyCompanions is
 
         // Check if token is revealed (either globally or individually)
         if (!$.revealed && !$.tokenRevealed[tokenId]) {
-            return $.hiddenMetadataUri;
+            return
+                bytes($.hiddenMetadataUri).length > 0
+                    ? string(
+                        abi.encodePacked(
+                            $.hiddenMetadataUri,
+                            _toString(tokenId),
+                            ".json"
+                        )
+                    )
+                    : "";
         }
+
+        // Check if token has a random code set
+        string memory randomCode = $.tokenRandomCodes[tokenId];
+        if (bytes(randomCode).length == 0) revert TokenCodeNotSet();
 
         return
             bytes($.baseTokenUri).length > 0
-                ? string(
-                    abi.encodePacked(
-                        $.baseTokenUri,
-                        _toString(tokenId),
-                        ".json"
-                    )
-                )
+                ? string(abi.encodePacked($.baseTokenUri, randomCode))
                 : "";
     }
 
@@ -288,6 +300,52 @@ contract DummyCompanions is
     function mintingContract() external view returns (address) {
         KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
         return $.mintingContract;
+    }
+
+    /// @notice Set random codes for multiple tokens in bulk
+    /// @param tokenIds Array of token IDs to set codes for
+    /// @param codes Array of random codes corresponding to each token ID
+    function setBulkTokenCodes(
+        uint256[] calldata tokenIds,
+        string[] calldata codes
+    ) external onlyOwner {
+        if (tokenIds.length != codes.length) revert ArrayLengthMismatch();
+        if (tokenIds.length == 0) revert BatchSizeZero();
+
+        KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            uint256 tokenId = tokenIds[i];
+            if (!$.tokenExists[tokenId]) revert InvalidTokenId();
+            
+            $.tokenRandomCodes[tokenId] = codes[i];
+        }
+
+        emit TokenCodesUpdated(tokenIds, codes);
+        emit MetadataUpdated(type(uint256).max);
+    }
+
+    /// @notice Get the random code for a specific token
+    /// @param tokenId The token ID to get the code for
+    /// @return The random code for the token
+    function getTokenCode(uint256 tokenId) external view returns (string memory) {
+        KttyWorldCompanionsStorage storage $ = _getKttyWorldCompanionsStorage();
+        if (!$.tokenExists[tokenId]) revert InvalidTokenId();
+        
+        return $.tokenRandomCodes[tokenId];
+    }
+
+    function _getERC721Storage2() private pure returns (ERC721Storage storage $) {
+        assembly {
+            $.slot := 0x80bb2b638cc20bc4d0a60d66940f3ab4a00c1d7b313497ca82fb0b4ab0079300
+        }
+    }
+
+    /// @notice Update the ERC721 name
+    /// @param _name The new name for the NFT collection
+    function updateName(string calldata _name) external onlyOwner {
+        _getERC721Storage2()._name = _name;
+        emit NameUpdated(_name);
     }
 
     /// @dev Require that the caller is either the owner or the minting contract
