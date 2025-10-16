@@ -17,6 +17,12 @@ async function bootstrap() {
     const port = configService.get<number>('app.port');
     const environment = configService.get<string>('app.environment');
 
+    // Enable CORS - allow all origins
+    app.enableCors({
+      origin: true,
+      credentials: true,
+    });
+
     // Enable validation
     app.useGlobalPipes(
       new ValidationPipe({
